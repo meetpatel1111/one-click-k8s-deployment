@@ -137,12 +137,32 @@ jobs:
       - name: Apply Kubernetes Deployments * Services
         if: ${{ github.event.inputs.action == 'apply' }}
         run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.0/deploy/static/provider/aws/deploy.yaml
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8s-deployments.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8s-deployments.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8s-deployments.yaml
-
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8s-services.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8s-services.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8s-services.yaml
-
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/ingress.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/ingress.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/ingress.yaml
+          
+          # Wait for Ingress IP/Hostname
+          echo "Waiting for Ingress endpoint..."
+          INGRESS_NAME="main-ingress"
+          for i in {1..30}; do
+            EXTERNAL_IP=$(kubectl -n default get ingress $INGRESS_NAME -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+            if [ -n "$EXTERNAL_IP" ]; then
+              echo "Ingress ready: http://$EXTERNAL_IP"
+              break
+            fi
+            echo "Waiting 10s..."
+            sleep 10
+          done
+          
+          # Fallback if still empty
+          if [ -z "$EXTERNAL_IP" ]; then
+            echo "Ingress hostname not ready yet. Check with: kubectl get ingress $INGRESS_NAME -n $NAMESPACE"
+          fi
+            
       - name: Verify Kubernetes Deployments & Services
         if: ${{ github.event.inputs.action == 'apply' }}
         run: |
           kubectl get deployments -A
           kubectl get svc -A
+        

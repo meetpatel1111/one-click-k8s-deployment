@@ -1,11 +1,4 @@
 # k8s-deployments.yaml
-
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: k8sgpt
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -55,7 +48,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: k8sgpt
-  namespace: k8sgpt
+  namespace: default
 spec:
   replicas: 1
   selector:
