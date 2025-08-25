@@ -99,7 +99,8 @@ jobs:
       - name: Terraform Plan
         run: |
           pwd
-          Write-Host "$TFVARS_FILE"
+          ls -la
+          echo "$TFVARS_FILE"
           terraform plan -var-file=$TFVARS_FILE -out=terraform.tfplan
 
       - name: Upload Terraform Plan
