@@ -81,6 +81,7 @@ jobs:
 
       - name: Configure AWS CLI
         run: |
+          cd terraform
           AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
@@ -136,6 +137,7 @@ jobs:
           else
             TFVARS_FILE="terraform/test.tfvars"
           fi
+          cd terraform
           AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
