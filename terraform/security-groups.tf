@@ -1,6 +1,6 @@
 resource "aws_security_group" "eks_nodes" {
   name        = "eks-nodes-sg"
-  vpc_id      = aws_vpc.main[0].id
+  vpc_id      = aws_vpc.main.id
   description = "Allow SSH/HTTP/HTTPS"
 
   ingress {
