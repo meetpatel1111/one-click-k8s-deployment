@@ -39,13 +39,17 @@ jobs:
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           aws configure set default.region us-east-1
 
-      - name: Bootstrap Backend (Local)
+      - name: Pre-bootstrap S3 & DynamoDB
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
-          cd terraform/bootstrap
-          # Use local backend for bootstrap
+          AWS_REGION="us-east-1"
+          ./terraform/bootstrap/prebootstrap.sh $ENVIRONMENT $AWS_REGION
+
+      - name: Bootstrap Terraform (local backend)
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          cd terraform
           terraform init
-          terraform plan -var="environment=$ENVIRONMENT"
           terraform apply -auto-approve -var="environment=$ENVIRONMENT"
 
   terraform-plan:
