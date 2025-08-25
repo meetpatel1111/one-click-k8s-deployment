@@ -39,10 +39,11 @@ jobs:
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           aws configure set default.region us-east-1
 
-      - name: Bootstrap Backend (S3 + DynamoDB)
+      - name: Bootstrap Backend (Local)
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           cd terraform
+          # Use local backend only for bootstrap
           terraform init
           terraform apply -auto-approve -var="environment=$ENVIRONMENT"
 
@@ -52,7 +53,6 @@ jobs:
     defaults:
       run:
         shell: bash
-
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v5
@@ -67,11 +67,8 @@ jobs:
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             TFVARS_FILE="terraform/dev.tfvars"
-          elif [[ "$ENVIRONMENT" == "test" ]]; then
-            TFVARS_FILE="terraform/test.tfvars"
           else
-            echo "Invalid environment: $ENVIRONMENT"
-            exit 1
+            TFVARS_FILE="terraform/test.tfvars"
           fi
           echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
           echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
@@ -79,13 +76,12 @@ jobs:
       - name: Configure AWS CLI
         run: |
           AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          export AWS_REGION
           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           aws configure set default.region $AWS_REGION
           echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
 
-      - name: Terraform Init (with remote backend)
+      - name: Terraform Init (Remote S3 Backend)
         run: |
           cd terraform
           terraform init -input=false -reconfigure \
@@ -93,7 +89,6 @@ jobs:
             -backend-config="key=k8s/terraform.tfstate" \
             -backend-config="region=us-east-1" \
             -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
-
 
       - name: Terraform Plan
         run: |
@@ -112,7 +107,6 @@ jobs:
     defaults:
       run:
         shell: bash
-
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v5
@@ -133,15 +127,10 @@ jobs:
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             TFVARS_FILE="terraform/dev.tfvars"
-          elif [[ "$ENVIRONMENT" == "test" ]]; then
-            TFVARS_FILE="terraform/test.tfvars"
           else
-            echo "Invalid environment: $ENVIRONMENT"
-            exit 1
+            TFVARS_FILE="terraform/test.tfvars"
           fi
-
           AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          export AWS_REGION
           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           aws configure set default.region $AWS_REGION
@@ -153,7 +142,6 @@ jobs:
       - name: Build & Push Node.js App Image
         run: |
           NODEJS_IMAGE=$(grep nodejs_docker_image $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          echo "Building Docker image: $NODEJS_IMAGE"
           cd apps/nodejs-app
           docker build -t $NODEJS_IMAGE .
           docker push $NODEJS_IMAGE
