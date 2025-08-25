@@ -42,9 +42,10 @@ jobs:
       - name: Bootstrap Backend (Local)
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
-          cd terraform
-          # Use local backend only for bootstrap
+          cd terraform/bootstrap
+          # Use local backend for bootstrap
           terraform init
+          terraform plan -var="environment=$ENVIRONMENT"
           terraform apply -auto-approve -var="environment=$ENVIRONMENT"
 
   terraform-plan:
@@ -87,7 +88,7 @@ jobs:
           terraform init -input=false -reconfigure \
             -backend-config="bucket=my-terraform-state-${ENVIRONMENT}" \
             -backend-config="key=k8s/terraform.tfstate" \
-            -backend-config="region=us-east-1" \
+            -backend-config="region=$AWS_REGION" \
             -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
 
       - name: Terraform Plan
