@@ -1,0 +1,132 @@
+name: One-Click K8s Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy (dev, test, or prod)'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      - name: Set Environment Variables
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          if [[ "$ENVIRONMENT" == "dev" ]]; then
+            TFVARS_FILE="terraform/dev.tfvars"
+          elif [[ "$ENVIRONMENT" == "test" ]]; then
+            TFVARS_FILE="terraform/tst.tfvars"
+          else
+            TFVARS_FILE="terraform/prod.tfvars"
+          fi
+          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
+          echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
+          echo "Using environment: $ENVIRONMENT"
+          echo "TFVARS file: $TFVARS_FILE"
+
+      - name: Terraform Init
+        run: |
+          cd terraform
+          terraform init
+
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform plan -var-file=$TFVARS_FILE -out=tfplan
+
+      - name: Upload Terraform Plan Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-plan
+          path: terraform/tfplan
+
+  terraform-apply:
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v3
+        with:
+          name: terraform-plan
+          path: terraform
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      - name: Configure AWS CLI
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          if [[ "$ENVIRONMENT" == "dev" ]]; then
+            TFVARS_FILE="terraform/dev.tfvars"
+          elif [[ "$ENVIRONMENT" == "test" ]]; then
+            TFVARS_FILE="terraform/tst.tfvars"
+          else
+            TFVARS_FILE="terraform/prod.tfvars"
+          fi
+          AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export AWS_REGION
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region $AWS_REGION
+          echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
+
+      - name: Docker Login
+        run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+
+      - name: Build & Push Node.js App Image
+        run: |
+          NODEJS_IMAGE=$(grep nodejs_docker_image $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          echo "Building Docker image: $NODEJS_IMAGE"
+          cd apps/nodejs-app
+          docker build -t $NODEJS_IMAGE .
+          docker push $NODEJS_IMAGE
+
+      - name: Terraform Apply
+        run: |
+          cd terraform
+          terraform apply tfplan
+
+      - name: Update kubeconfig
+        run: |
+          CLUSTER_NAME=$(terraform -chdir=terraform output -raw cluster_name)
+          aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+
+      - name: Verify Kubernetes Deployments
+        run: |
+          kubectl get nodes
+          kubectl get deployments -A

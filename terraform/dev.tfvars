@@ -1,0 +1,14 @@
+aws_region = "us-east-1"
+cluster_name = "dev-eks-cluster"
+vpc_cidr = "10.0.0.0/16"
+public_subnet_count = 2
+private_subnet_count = 2
+node_group_name = "dev-ng"
+node_instance_type = "t3.medium"
+desired_capacity = 2
+min_size = 1
+max_size = 3
+nodejs_docker_image = "meetpatel1111/nodejs-app:dev"
+nginx_replicas = 1
+nodejs_replicas = 1
+k8sgpt_replicas = 1

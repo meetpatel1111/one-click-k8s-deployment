@@ -1,0 +1,14 @@
+variable "aws_region" {}
+variable "cluster_name" {}
+variable "vpc_cidr" {}
+variable "public_subnet_count" {}
+variable "private_subnet_count" {}
+variable "node_group_name" {}
+variable "node_instance_type" {}
+variable "desired_capacity" {}
+variable "min_size" {}
+variable "max_size" {}
+variable "nodejs_docker_image" {}
+variable "nginx_replicas" {}
+variable "nodejs_replicas" {}
+variable "k8sgpt_replicas" {}
