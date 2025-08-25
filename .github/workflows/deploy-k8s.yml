@@ -45,7 +45,7 @@ jobs:
           cd terraform
           terraform init -backend=false
           terraform apply -auto-approve -var="environment=$ENVIRONMENT"
-          
+
   terraform-plan:
     needs: bootstrap-backend
     runs-on: ubuntu-latest
@@ -93,6 +93,7 @@ jobs:
             -backend-config="key=k8s/terraform.tfstate" \
             -backend-config="region=us-east-1" \
             -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
+
 
       - name: Terraform Plan
         run: |
