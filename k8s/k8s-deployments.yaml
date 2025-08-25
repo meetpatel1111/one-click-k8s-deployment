@@ -1,14 +1,16 @@
 ---
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: PersistentVolume
 metadata:
-  name: mini-budget-data
+  name: mini-budget-pv
 spec:
+  capacity:
+    storage: 1Gi
   accessModes:
     - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
+  hostPath:
+    path: /mnt/data/mini-budget
+
 
 # k8s-deployments.yaml
 ---
