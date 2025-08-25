@@ -1,20 +1,23 @@
 data "aws_availability_zones" "available" {}
 
-# Check if VPC exists
-data "aws_vpc" "existing" {
+# Get all VPCs with a specific tag
+data "aws_vpcs" "existing" {
   filter {
     name   = "tag:Name"
     values = ["${var.cluster_name}-vpc"]
   }
 }
 
+# Create VPC only if it doesn’t exist
 resource "aws_vpc" "main" {
-  count      = length(data.aws_vpc.existing.ids) == 0 ? 1 : 0
+  count = length(data.aws_vpcs.existing.ids) == 0 ? 1 : 0
+
   cidr_block = var.vpc_cidr
-  tags = { 
-    Name = "${var.cluster_name}-vpc" 
+  tags = {
+    Name = "${var.cluster_name}-vpc"
   }
 }
+
 
 resource "aws_subnet" "public" {
   count = var.public_subnet_count
