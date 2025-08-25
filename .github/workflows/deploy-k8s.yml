@@ -156,6 +156,7 @@ jobs:
       - name: Terraform Apply
         run: |
           cd terraform
+          terraform init -input=false
           terraform apply terraform.tfplan
 
       - name: Update kubeconfig
