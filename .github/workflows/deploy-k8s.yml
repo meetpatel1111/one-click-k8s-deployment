@@ -72,9 +72,9 @@ jobs:
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           if [[ "$ENVIRONMENT" == "dev" ]]; then
-            TFVARS_FILE="terraform/dev.tfvars"
+            TFVARS_FILE="dev.tfvars"
           else
-            TFVARS_FILE="terraform/test.tfvars"
+            TFVARS_FILE="test.tfvars"
           fi
           echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
           echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
@@ -132,9 +132,9 @@ jobs:
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           if [[ "$ENVIRONMENT" == "dev" ]]; then
-            TFVARS_FILE="terraform/dev.tfvars"
+            TFVARS_FILE="dev.tfvars"
           else
-            TFVARS_FILE="terraform/test.tfvars"
+            TFVARS_FILE="test.tfvars"
           fi
           AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
