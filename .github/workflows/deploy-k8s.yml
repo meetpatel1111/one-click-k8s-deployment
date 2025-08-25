@@ -68,25 +68,18 @@ jobs:
         with:
           terraform_version: 1.6.0
 
-      - name: Set Environment Variables
+      - name: Configure AWS CLI
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             TFVARS_FILE="dev.tfvars"
-          else
+          else [[ "$ENVIRONMENT" == "test" ]]; then
             TFVARS_FILE="test.tfvars"
           fi
           echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
           echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
-
-      - name: Configure AWS CLI
-        run: |
-          cd terraform
-          AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-          aws configure set default.region $AWS_REGION
-          echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
+          echo "Using environment: $ENVIRONMENT"
+          echo "TFVARS file: $TFVARS_FILE"
 
       - name: Terraform Init (Remote S3 Backend)
         run: |
@@ -100,7 +93,7 @@ jobs:
       - name: Terraform Plan
         run: |
           cd terraform
-          terraform plan -var-file="$pwd/$TFVARS_FILE" -out=terraform.tfplan
+          terraform plan -var-file="$TFVARS_FILE" -out=terraform.tfplan
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
