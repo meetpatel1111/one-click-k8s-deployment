@@ -46,7 +46,7 @@ spec:
     spec:
       containers:
       - name: nodejs-app
-        image: <YOUR_NODEJS_DOCKER_IMAGE> # replace with your image
+        image: "meetpatel1111/nodejs-app:${ENVIRONMENT}" # replace with your image
         ports:
         - containerPort: 3000
 
