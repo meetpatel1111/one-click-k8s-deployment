@@ -9,9 +9,18 @@ provider "aws" {
   region = var.aws_region
 }
 
-# S3 bucket for Terraform state
+# Check if S3 bucket exists
+data "aws_s3_bucket" "existing" {
+  bucket = "tfstate-${var.environment}-state"
+
+  # Suppress errors if bucket doesn't exist
+  # Terraform <1.7 doesn't support 'ignore_errors', so we handle via count below
+}
+
+# Create S3 bucket only if it doesn't exist
 resource "aws_s3_bucket" "tfstate" {
-  bucket = "tf-state-${var.environment}"
+  count  = try(length(data.aws_s3_bucket.existing.id), 0) == 0 ? 1 : 0
+  bucket = "tfstate-${var.environment}-state"
   acl    = "private"
 
   versioning {
@@ -27,8 +36,14 @@ resource "aws_s3_bucket" "tfstate" {
   }
 }
 
-# DynamoDB table for state locking
+# Check if DynamoDB table exists
+data "aws_dynamodb_table" "existing" {
+  name = "terraform-locks-${var.environment}"
+}
+
+# Create DynamoDB table only if it doesn't exist
 resource "aws_dynamodb_table" "tf_locks" {
+  count        = try(length(data.aws_dynamodb_table.existing.name), 0) == 0 ? 1 : 0
   name         = "terraform-locks-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
