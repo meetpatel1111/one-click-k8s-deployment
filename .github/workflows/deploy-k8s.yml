@@ -157,6 +157,7 @@ jobs:
         run: |
           cd terraform
           AWS_REGION="us-east-1"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
           terraform init -input=false -reconfigure \
             -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
             -backend-config="key=k8s/terraform.tfstate" \
