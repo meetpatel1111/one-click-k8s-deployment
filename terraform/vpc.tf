@@ -36,14 +36,19 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-resource "aws_eip" "nat" { 
-  vpc = true 
+resource "aws_eip" "nat" {
+  tags = {
+    Name = "${var.cluster_name}-nat-eip"
   }
+}
 
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public[0].id
-  depends_on    = [aws_internet_gateway.igw]
+
+  tags = {
+    Name = "${var.cluster_name}-nat-gateway"
+  }
 }
 
 resource "aws_route_table" "public" {
