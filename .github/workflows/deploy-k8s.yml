@@ -130,9 +130,9 @@ jobs:
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           if [[ "$ENVIRONMENT" == "dev" ]]; then
-            TFVARS_FILE="terraform/dev.tfvars"
+            TFVARS_FILE="dev.tfvars"
           else
-            TFVARS_FILE="terraform/test.tfvars"
+            TFVARS_FILE="test.tfvars"
           fi
           cd terraform
           AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
