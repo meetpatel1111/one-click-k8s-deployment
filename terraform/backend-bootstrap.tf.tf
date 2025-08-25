@@ -1,10 +1,5 @@
 # terraform/backend-bootstrap.tf
 
-provider "aws" {
-  region = "us-east-1"
-}
-
-# S3 bucket for Terraform state
 resource "aws_s3_bucket" "tfstate" {
   bucket = "my-terraform-state-${var.environment}"
   acl    = "private"
@@ -22,7 +17,6 @@ resource "aws_s3_bucket" "tfstate" {
   }
 }
 
-# DynamoDB table for state locking
 resource "aws_dynamodb_table" "tf_locks" {
   name         = "terraform-locks-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
@@ -32,9 +26,4 @@ resource "aws_dynamodb_table" "tf_locks" {
     name = "LockID"
     type = "S"
   }
-}
-
-variable "environment" {
-  type        = string
-  description = "Environment (dev/test)"
 }
