@@ -3,9 +3,8 @@ kind: Ingress
 metadata:
   name: main-ingress
   namespace: default
-  annotations:
-    kubernetes.io/ingress.class: nginx
 spec:
+  ingressClassName: nginx   # replaces deprecated annotation
   rules:
     - http:
         paths:
