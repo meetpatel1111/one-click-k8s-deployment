@@ -65,6 +65,14 @@ jobs:
           fi
           echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
 
+      - name: Pre-bootstrap S3 & DynamoDB
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          ACTION="${{ github.event.inputs.action }}"
+          AWS_REGION="us-east-1"
+          chmod +x terraform/bootstrap/prebootstrap.sh
+          ./terraform/bootstrap/prebootstrap.sh $ENVIRONMENT $AWS_REGION
+
       - name: Docker Login
         if: ${{ github.event.inputs.action == 'apply' }}
         run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
