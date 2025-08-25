@@ -8,7 +8,7 @@ data "aws_vpcs" "existing" {
 }
 
 resource "aws_vpc" "main" {
-  count = length(data.aws_vpcs.existing.ids) == 0 ? 1 : 0
+  count      = length(data.aws_vpcs.existing.ids) == 0 ? 1 : 0
   cidr_block = var.vpc_cidr
   tags = {
     Name = "${var.cluster_name}-vpc"
@@ -16,31 +16,31 @@ resource "aws_vpc" "main" {
 }
 
 resource "aws_subnet" "public" {
-  count = var.public_subnet_count
-  vpc_id = aws_vpc.main[0].id
-  cidr_block = cidrsubnet(var.vpc_cidr, 4, count.index)
+  count                   = var.public_subnet_count
+  vpc_id                  = aws_vpc.main[0].id
+  cidr_block              = cidrsubnet(var.vpc_cidr, 4, count.index)
   map_public_ip_on_launch = true
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-  tags = { 
-    Name = "${var.cluster_name}-public-${count.index}" 
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  tags = {
+    Name = "${var.cluster_name}-public-${count.index}"
   }
 }
 
 resource "aws_subnet" "private" {
-  count = var.private_subnet_count
-  vpc_id = aws_vpc.main[0].id
-  cidr_block = cidrsubnet(var.vpc_cidr, 4, count.index + var.public_subnet_count)
+  count                   = var.private_subnet_count
+  vpc_id                  = aws_vpc.main[0].id
+  cidr_block              = cidrsubnet(var.vpc_cidr, 4, count.index + var.public_subnet_count)
   map_public_ip_on_launch = false
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-  tags = { 
-    Name = "${var.cluster_name}-private-${count.index}" 
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  tags = {
+    Name = "${var.cluster_name}-private-${count.index}"
   }
 }
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main[0].id
-  tags = { 
-    Name = "${var.cluster_name}-igw" 
+  tags = {
+    Name = "${var.cluster_name}-igw"
   }
 }
 
@@ -61,12 +61,12 @@ resource "aws_nat_gateway" "nat" {
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main[0].id
-  route { 
+  route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id 
+    gateway_id = aws_internet_gateway.igw.id
   }
-  tags = { 
-    Name = "${var.cluster_name}-public-rt" 
+  tags = {
+    Name = "${var.cluster_name}-public-rt"
   }
 }
 
@@ -78,12 +78,12 @@ resource "aws_route_table_association" "public" {
 
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main[0].id
-  route { 
-    cidr_block = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat.id 
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
   }
-  tags = { 
-    Name = "${var.cluster_name}-private-rt" 
+  tags = {
+    Name = "${var.cluster_name}-private-rt"
   }
 }
 
