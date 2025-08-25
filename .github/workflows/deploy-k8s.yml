@@ -43,7 +43,7 @@ jobs:
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           cd terraform
-          terraform init -backend=false
+          terraform init
           terraform apply -auto-approve -var="environment=$ENVIRONMENT"
 
   terraform-plan:
