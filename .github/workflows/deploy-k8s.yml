@@ -11,7 +11,15 @@ on:
         options:
           - dev
           - test
-
+      action:
+        description: 'Terraform action (apply or destroy)'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+          
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
@@ -54,6 +62,7 @@ jobs:
       #     terraform apply -auto-approve -var="environment=$ENVIRONMENT"
 
   terraform-plan:
+    if: ${{ github.event.inputs.action == 'apply' }}
     needs: bootstrap-backend
     runs-on: ubuntu-latest
     defaults:
@@ -106,6 +115,7 @@ jobs:
           path: terraform/terraform.tfplan
 
   terraform-apply:
+    if: ${{ github.event.inputs.action == 'apply' }}
     needs: terraform-plan
     runs-on: ubuntu-latest
     defaults:
@@ -201,3 +211,54 @@ jobs:
         run: |
           kubectl get deployments -A
           kubectl get svc -A
+
+  terraform-destroy:
+    if: ${{ github.event.inputs.action == 'destroy' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Configure AWS CLI
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          if [[ "$ENVIRONMENT" == "dev" ]]; then
+            TFVARS_FILE="dev.tfvars"
+          else
+            TFVARS_FILE="test.tfvars"
+          fi
+          AWS_REGION="us-east-1"
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region $AWS_REGION
+          echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
+          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
+
+      - name: Terraform Init (Remote S3 Backend)
+        run: |
+          cd terraform
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
+
+      - name: Terraform Destroy Plan
+        run: |
+          cd terraform
+          terraform plan -destroy \
+            -var-file="$TFVARS_FILE" \
+            -out=terraform-destroy.tfplan
+
+      - name: Terraform Destroy Apply
+        run: |
+          cd terraform
+          terraform apply -auto-approve terraform-destroy.tfplan
