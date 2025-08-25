@@ -43,6 +43,7 @@ jobs:
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           AWS_REGION="us-east-1"
+          chmod +x prebootstrap.sh
           ./terraform/bootstrap/prebootstrap.sh $ENVIRONMENT $AWS_REGION
 
       - name: Bootstrap Terraform (local backend)
