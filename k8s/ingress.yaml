@@ -17,11 +17,19 @@ spec:
                 name: nginx-service
                 port:
                   number: 80
-          - path: /nodejs
+          # - path: /nodejs
+          #   pathType: Prefix
+          #   backend:
+          #     service:
+          #       name: nodejs-service
+          #       port:
+          #         number: 3000
+
+          - path: /mini-budget-tracker(/|$)(.*)
             pathType: Prefix
             backend:
               service:
-                name: nodejs-service
+                name: mini-budget-tracker-service
                 port:
                   number: 3000
           - path: /k8sgpt

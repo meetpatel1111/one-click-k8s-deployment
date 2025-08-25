@@ -119,13 +119,21 @@ jobs:
               ;;
           esac
 
-      - name: Build & Push Node.js App Image
+      # - name: Build & Push Node.js App Image
+      #   if: ${{ github.event.inputs.action == 'apply' }}
+      #   run: |
+      #     NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+      #     cd apps/nodejs-app
+      #     docker build -t $NODEJS_IMAGE .
+      #     docker push $NODEJS_IMAGE
+
+      - name: Build & Push mini-budget-tracker App Image
         if: ${{ github.event.inputs.action == 'apply' }}
         run: |
-          NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          cd apps/nodejs-app
-          docker build -t $NODEJS_IMAGE .
-          docker push $NODEJS_IMAGE
+          BUDGET_APP_IMAGE=$(grep mini-budget-tracker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          cd apps/mini-budget-tracker
+          docker build -t $BUDGET_APP_IMAGE .
+          docker push $BUDGET_APP_IMAGE
 
       - name: Update kubeconfig
         if: ${{ github.event.inputs.action == 'apply' }}

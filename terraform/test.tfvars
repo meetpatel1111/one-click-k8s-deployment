@@ -9,6 +9,7 @@ desired_capacity     = 2
 min_size             = 1
 max_size             = 4
 nodejs_docker_image  = "meetpatel1111/nodejs-app:tst"
+mini-budget-tracker_image  = "meetpatel1111/mini-budget-tracker:test"
 nginx_replicas       = 2
 nodejs_replicas      = 2
 k8sgpt_replicas      = 1
