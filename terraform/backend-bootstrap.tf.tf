@@ -1,5 +1,10 @@
-# terraform/backend-bootstrap.tf
+terraform {
+  backend "local" {
+    path = "terraform-bootstrap.tfstate"
+  }
+}
 
+# S3 bucket for Terraform state
 resource "aws_s3_bucket" "tfstate" {
   bucket = "my-terraform-state-${var.environment}"
   acl    = "private"
@@ -17,6 +22,7 @@ resource "aws_s3_bucket" "tfstate" {
   }
 }
 
+# DynamoDB table for state locking
 resource "aws_dynamodb_table" "tf_locks" {
   name         = "terraform-locks-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
