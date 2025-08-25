@@ -1,20 +1,9 @@
-
-# Data source: EKS cluster details
+# Fetch EKS cluster details
 data "aws_eks_cluster" "eks" {
   name = aws_eks_cluster.eks.name
 }
 
-# Data source: Generate authentication token
+# Generate short-lived authentication token
 data "aws_eks_cluster_auth" "eks" {
   name = aws_eks_cluster.eks.name
-}
-
-# Kubernetes provider configuration
-provider "kubernetes" {
-  host                   = data.aws_eks_cluster.eks.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.eks.token
-
-  # Ensure the cluster is created before provider is used
-  depends_on = [aws_eks_cluster.eks]
 }
