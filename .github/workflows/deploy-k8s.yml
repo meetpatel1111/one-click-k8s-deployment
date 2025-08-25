@@ -91,7 +91,7 @@ jobs:
         run: |
           cd terraform
           terraform init -input=false -reconfigure \
-            -backend-config="bucket=my-terraform-state-${ENVIRONMENT}" \
+            -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
             -backend-config="key=k8s/terraform.tfstate" \
             -backend-config="region=$AWS_REGION" \
             -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
