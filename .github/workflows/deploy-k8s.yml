@@ -146,7 +146,9 @@ jobs:
 
       - name: Build & Push Node.js App Image
         run: |
+          cd terraform
           NODEJS_IMAGE=$(grep nodejs_docker_image $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          cd ..
           cd apps/nodejs-app
           docker build -t $NODEJS_IMAGE .
           docker push $NODEJS_IMAGE
