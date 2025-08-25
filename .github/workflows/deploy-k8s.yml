@@ -12,14 +12,15 @@ on:
           - dev
           - test
       action:
-        description: 'Terraform action (apply or destroy)'
+        description: 'Terraform action (apply, destroy, refresh)'
         required: true
         default: 'apply'
         type: choice
         options:
           - apply
           - destroy
-          
+          - refresh
+
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
@@ -27,7 +28,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 jobs:
-  bootstrap-backend:
+  terraform-k8s:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,101 +36,6 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v5
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.0
-
-      - name: Configure AWS CLI
-        run: |
-          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-          aws configure set default.region us-east-1
-
-      - name: Pre-bootstrap S3 & DynamoDB
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          AWS_REGION="us-east-1"
-          chmod +x terraform/bootstrap/prebootstrap.sh
-          ./terraform/bootstrap/prebootstrap.sh $ENVIRONMENT $AWS_REGION
-
-      # - name: Bootstrap Terraform (local backend)
-      #   run: |
-      #     ENVIRONMENT="${{ github.event.inputs.environment }}"
-      #     cd terraform
-      #     terraform init
-      #     terraform apply -auto-approve -var="environment=$ENVIRONMENT"
-
-  terraform-plan:
-    if: ${{ github.event.inputs.action == 'apply' }}
-    needs: bootstrap-backend
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v5
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.0
-
-      - name: Configure AWS CLI
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          if [[ "$ENVIRONMENT" == "dev" ]]; then
-            TFVARS_FILE="dev.tfvars"
-          elif [[ "$ENVIRONMENT" == "test" ]]; then
-            TFVARS_FILE="test.tfvars"
-          else
-            echo "Unknown environment: $ENVIRONMENT"
-            exit 1
-          fi
-          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
-          echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
-          echo "Using environment: $ENVIRONMENT"
-          echo "TFVARS file: $TFVARS_FILE"
-
-      - name: Terraform Init (Remote S3 Backend)
-        run: |
-          cd terraform
-          export AWS_REGION="us-east-1"
-          terraform init -input=false -reconfigure \
-            -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
-            -backend-config="key=terraform.tfstate" \
-            -backend-config="region=$AWS_REGION" \
-            -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
-
-      - name: Terraform Plan
-        run: |
-          cd terraform
-          terraform plan -var-file="$TFVARS_FILE" -out=terraform.tfplan
-
-      - name: Upload Terraform Plan
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-plan
-          path: terraform/terraform.tfplan
-
-  terraform-apply:
-    if: ${{ github.event.inputs.action == 'apply' }}
-    needs: terraform-plan
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v5
-
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v5
-        with:
-          name: terraform-plan
-          path: terraform
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -147,100 +53,21 @@ jobs:
       - name: Configure AWS CLI
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
+          AWS_REGION="us-east-1"
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region $AWS_REGION
+          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             TFVARS_FILE="dev.tfvars"
           else
             TFVARS_FILE="test.tfvars"
           fi
-          cd terraform
-          AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-          aws configure set default.region $AWS_REGION
           echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
 
       - name: Docker Login
+        if: ${{ github.event.inputs.action == 'apply' }}
         run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-
-      - name: Build & Push Node.js App Image
-        run: |
-          cd terraform
-          NODEJS_IMAGE=$(grep nodejs_docker_image $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          cd ..
-          cd apps/nodejs-app
-          docker build -t $NODEJS_IMAGE .
-          docker push $NODEJS_IMAGE
-
-      - name: Terraform Apply
-        run: |
-          cd terraform
-          AWS_REGION="us-east-1"
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          terraform init -input=false -reconfigure \
-            -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
-            -backend-config="key=terraform.tfstate" \
-            -backend-config="region=$AWS_REGION" \
-            -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
-          terraform apply terraform.tfplan
-
-      - name: Update kubeconfig
-        run: |
-          AWS_REGION=$(grep aws_region terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          CLUSTER_NAME=$(terraform -chdir=terraform output -raw cluster_name)
-          aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
-          
-      - name: Generate Deployment YAML
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          envsubst < k8s/k8s-deployments.yaml.template > k8s/k8s-deployments.yaml
-
-      - name: Apply Kubernetes Deployments
-        run: |
-          kubectl apply -f k8s/k8s-deployments.yaml
-
-      - name: Generate Service YAML
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          envsubst < k8s/k8s-services.yaml.template > k8s/k8s-services.yaml
-
-      - name: Apply Kubernetes Services
-        run: |
-          kubectl apply -f k8s/k8s-services.yaml
-
-      - name: Verify Kubernetes Deployments & Services
-        run: |
-          kubectl get deployments -A
-          kubectl get svc -A
-
-  terraform-destroy:
-    if: ${{ github.event.inputs.action == 'destroy' }}
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v5
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.0
-
-      - name: Configure AWS CLI
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          if [[ "$ENVIRONMENT" == "dev" ]]; then
-            TFVARS_FILE="dev.tfvars"
-          else
-            TFVARS_FILE="test.tfvars"
-          fi
-          AWS_REGION="us-east-1"
-          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-          aws configure set default.region $AWS_REGION
-          echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
-          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
 
       - name: Terraform Init (Remote S3 Backend)
         run: |
@@ -248,17 +75,62 @@ jobs:
           terraform init -input=false -reconfigure \
             -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
             -backend-config="key=terraform.tfstate" \
-            -backend-config="region=us-east-1" \
+            -backend-config="region=$AWS_REGION" \
             -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
 
-      - name: Terraform Destroy Plan
+      - name: Execute Terraform
         run: |
           cd terraform
-          terraform plan -destroy \
-            -var-file="$TFVARS_FILE" \
-            -out=terraform-destroy.tfplan
+          ACTION="${{ github.event.inputs.action }}"
+          case "$ACTION" in
+            apply)
+              terraform plan -var-file="$TFVARS_FILE" -out=tfplan
+              terraform apply tfplan
+              ;;
+            destroy)
+              terraform plan -destroy -var-file="$TFVARS_FILE" -out=tfplan-destroy
+              terraform apply -auto-approve tfplan-destroy
+              ;;
+            refresh)
+              terraform refresh -var-file="$TFVARS_FILE"
+              ;;
+            *)
+              echo "Unknown action: $ACTION"
+              exit 1
+              ;;
+          esac
 
-      - name: Terraform Destroy Apply
+      - name: Build & Push Node.js App Image
+        if: ${{ github.event.inputs.action == 'apply' }}
         run: |
-          cd terraform
-          terraform apply -auto-approve terraform-destroy.tfplan
+          NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          cd apps/nodejs-app
+          docker build -t $NODEJS_IMAGE .
+          docker push $NODEJS_IMAGE
+
+      - name: Update kubeconfig
+        if: ${{ github.event.inputs.action == 'apply' }}
+        run: |
+          AWS_REGION=$(grep aws_region terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          CLUSTER_NAME=$(terraform -chdir=terraform output -raw cluster_name)
+          aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+
+      - name: Apply Kubernetes Deployments
+        if: ${{ github.event.inputs.action == 'apply' }}
+        run: |
+          ENVIRONMENT="$ENVIRONMENT"
+          envsubst < k8s/k8s-deployments.yaml.template > k8s/k8s-deployments.yaml
+          kubectl apply -f k8s/k8s-deployments.yaml
+
+      - name: Apply Kubernetes Services
+        if: ${{ github.event.inputs.action == 'apply' }}
+        run: |
+          ENVIRONMENT="$ENVIRONMENT"
+          envsubst < k8s/k8s-services.yaml.template > k8s/k8s-services.yaml
+          kubectl apply -f k8s/k8s-services.yaml
+
+      - name: Verify Kubernetes Deployments & Services
+        if: ${{ github.event.inputs.action == 'apply' }}
+        run: |
+          kubectl get deployments -A
+          kubectl get svc -A
