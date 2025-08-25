@@ -1,0 +1,43 @@
+# k8s-services.yaml
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: default
+spec:
+  selector:
+    app: nginx
+  type: LoadBalancer
+  ports:
+    - port: 80       # external port
+      targetPort: 80 # container port
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-service
+  namespace: default
+spec:
+  selector:
+    app: nodejs-app
+  type: LoadBalancer
+  ports:
+    - port: 3000       # external port
+      targetPort: 3000 # container port
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8sgpt-service
+  namespace: k8sgpt
+spec:
+  selector:
+    app: k8sgpt
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80

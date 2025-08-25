@@ -126,6 +126,14 @@ jobs:
         with:
           terraform_version: 1.6.0
 
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Verify kubectl version
+        run: kubectl version --client
+
       - name: Configure AWS CLI
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
@@ -169,8 +177,26 @@ jobs:
         run: |
           CLUSTER_NAME=$(terraform -chdir=terraform output -raw cluster_name)
           aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
-
-      - name: Verify Kubernetes Deployments
+          
+      - name: Generate Deployment YAML
         run: |
-          kubectl get nodes
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          envsubst < k8s/k8s-deployments.yaml.template > k8s/k8s-deployments.yaml
+
+      - name: Apply Kubernetes Deployments
+        run: |
+          kubectl apply -f k8s/k8s-deployments.yaml
+
+      - name: Generate Service YAML
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          envsubst < k8s/k8s-services.yaml.template > k8s/k8s-services.yaml
+
+      - name: Apply Kubernetes Services
+        run: |
+          kubectl apply -f k8s/k8s-services.yaml
+
+      - name: Verify Kubernetes Deployments & Services
+        run: |
           kubectl get deployments -A
+          kubectl get svc -A

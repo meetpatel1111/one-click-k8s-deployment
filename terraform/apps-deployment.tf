@@ -1,3 +1,4 @@
+/*
 resource "kubernetes_deployment" "nginx" {
   metadata { name = "nginx" }
   spec {
@@ -56,33 +57,37 @@ resource "kubernetes_deployment" "nodejs" {
   }
 }
 
+resource "kubernetes_namespace" "k8sgpt" {
+  metadata {
+    name = "k8sgpt"
+  }
+}
+
 resource "kubernetes_deployment" "k8sgpt" {
-  metadata { 
-    name="k8sgpt"
-    namespace="k8sgpt"
+  depends_on = [kubernetes_namespace.k8sgpt] # ensures namespace exists first
+  metadata {
+    name      = "k8sgpt"
+    namespace = kubernetes_namespace.k8sgpt.metadata[0].name
   }
   spec {
     replicas = var.k8sgpt_replicas
-    selector { 
-      match_labels= {
-        app="k8sgpt"
-      } 
+    selector {
+      match_labels = { app = "k8sgpt" }
     }
     template {
-      metadata { 
-        labels= {
-          app="k8sgpt"
-        } 
+      metadata {
+        labels = { app = "k8sgpt" }
       }
       spec {
-        container { 
-          name="k8sgpt"
-          image="ghcr.io/k8sgpt-ai/k8sgpt:latest"
+        container {
+          name  = "k8sgpt"
+          image = "ghcr.io/k8sgpt-ai/k8sgpt:latest"
           port {
-            container_port=80
-          } 
+            container_port = 80
+          }
         }
       }
     }
   }
 }
+*/
