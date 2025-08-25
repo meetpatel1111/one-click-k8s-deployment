@@ -70,8 +70,7 @@ resource "kubernetes_deployment" "k8sgpt" {
     }
     template {
       metadata { 
-        labels=
-        {
+        labels= {
           app="k8sgpt"
         } 
       }
