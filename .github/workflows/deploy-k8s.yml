@@ -19,7 +19,34 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 jobs:
+  bootstrap-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      - name: Configure AWS CLI
+        run: |
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region us-east-1
+
+      - name: Bootstrap Backend (create S3 + DynamoDB)
+        run: |
+          cd terraform
+          terraform init -backend=false
+          terraform apply -auto-approve -target=aws_s3_bucket.tfstate -target=aws_dynamodb_table.tf_locks
+
   terraform-plan:
+    needs: bootstrap-backend
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,30 +65,46 @@ jobs:
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           if [[ "$ENVIRONMENT" == "dev" ]]; then
-            TFVARS_FILE="dev.tfvars"
-          else [[ "$ENVIRONMENT" == "test" ]]; then
-            TFVARS_FILE="test.tfvars"
+            TFVARS_FILE="terraform/dev.tfvars"
+          elif [[ "$ENVIRONMENT" == "test" ]]; then
+            TFVARS_FILE="terraform/test.tfvars"
+          else
+            echo "Invalid environment: $ENVIRONMENT"
+            exit 1
           fi
           echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
           echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
           echo "Using environment: $ENVIRONMENT"
           echo "TFVARS file: $TFVARS_FILE"
 
-      - name: Terraform Init
+      - name: Configure AWS CLI
+        run: |
+          AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export AWS_REGION
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region $AWS_REGION
+          echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
+
+      - name: Terraform Init (with backend)
         run: |
           cd terraform
-          terraform init
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=my-terraform-state-${ENVIRONMENT}" \
+            -backend-config="key=k8s/terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
 
       - name: Terraform Plan
         run: |
           cd terraform
-          terraform plan -var-file=$TFVARS_FILE -out=tfplan
+          terraform plan -var-file=$TFVARS_FILE -out=terraform.tfplan
 
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: terraform/tfplan
+          path: terraform/terraform.tfplan
 
   terraform-apply:
     needs: terraform-plan
@@ -72,7 +115,7 @@ jobs:
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Terraform Plan
         uses: actions/download-artifact@v5
@@ -90,9 +133,13 @@ jobs:
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             TFVARS_FILE="terraform/dev.tfvars"
-          else [[ "$ENVIRONMENT" == "test" ]]; then
-            TFVARS_FILE="terraform/tst.tfvars"
+          elif [[ "$ENVIRONMENT" == "test" ]]; then
+            TFVARS_FILE="terraform/test.tfvars"
+          else
+            echo "Invalid environment: $ENVIRONMENT"
+            exit 1
           fi
+
           AWS_REGION=$(grep aws_region $TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           export AWS_REGION
           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
@@ -114,7 +161,7 @@ jobs:
       - name: Terraform Apply
         run: |
           cd terraform
-          terraform apply tfplan
+          terraform apply terraform.tfplan
 
       - name: Update kubeconfig
         run: |
