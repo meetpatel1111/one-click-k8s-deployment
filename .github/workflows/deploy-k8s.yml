@@ -101,7 +101,7 @@ jobs:
           pwd
           ls -la
           echo "$TFVARS_FILE"
-          terraform plan -var-file=$TFVARS_FILE -out=terraform.tfplan
+          terraform plan -var-file="$pwd/$TFVARS_FILE" -out=terraform.tfplan
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
