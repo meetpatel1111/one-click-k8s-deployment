@@ -175,6 +175,7 @@ jobs:
 
       - name: Update kubeconfig
         run: |
+          AWS_REGION=$(grep aws_region terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           CLUSTER_NAME=$(terraform -chdir=terraform output -raw cluster_name)
           aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
           

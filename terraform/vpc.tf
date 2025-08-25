@@ -1,6 +1,15 @@
 data "aws_availability_zones" "available" {}
 
+# Check if VPC exists
+data "aws_vpc" "existing" {
+  filter {
+    name   = "tag:Name"
+    values = ["${var.cluster_name}-vpc"]
+  }
+}
+
 resource "aws_vpc" "main" {
+  count      = length(data.aws_vpc.existing.ids) == 0 ? 1 : 0
   cidr_block = var.vpc_cidr
   tags = { 
     Name = "${var.cluster_name}-vpc" 
