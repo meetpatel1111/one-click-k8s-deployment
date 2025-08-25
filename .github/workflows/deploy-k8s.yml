@@ -6,7 +6,7 @@ on:
       environment:
         description: 'Environment to deploy (dev, test)'
         required: true
-        default: 'test'
+        default: 'dev'
         type: choice
         options:
           - dev
@@ -44,7 +44,7 @@ jobs:
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           cd terraform
           terraform init -backend=false
-          terraform apply -auto-approve -var="environment=$ENVIRONMENT"
+          terraform apply -auto-approve -var="environment=$ENVIRONMENT" -backend=false
 
   terraform-plan:
     needs: bootstrap-backend
