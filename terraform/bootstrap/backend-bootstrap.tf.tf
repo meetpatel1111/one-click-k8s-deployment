@@ -11,7 +11,7 @@ provider "aws" {
 
 # S3 bucket for Terraform state
 resource "aws_s3_bucket" "tfstate" {
-  bucket = "my-terraform-state-${var.environment}"
+  bucket = "tf-state-${var.environment}"
   acl    = "private"
 
   versioning {
