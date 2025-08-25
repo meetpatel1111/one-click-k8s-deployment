@@ -87,6 +87,7 @@ jobs:
       - name: Terraform Init (Remote S3 Backend)
         run: |
           cd terraform
+          export AWS_REGION="us-east-1"
           terraform init -input=false -reconfigure \
             -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
             -backend-config="key=k8s/terraform.tfstate" \
