@@ -46,12 +46,12 @@ jobs:
           chmod +x terraform/bootstrap/prebootstrap.sh
           ./terraform/bootstrap/prebootstrap.sh $ENVIRONMENT $AWS_REGION
 
-      - name: Bootstrap Terraform (local backend)
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          cd terraform
-          terraform init
-          terraform apply -auto-approve -var="environment=$ENVIRONMENT"
+      # - name: Bootstrap Terraform (local backend)
+      #   run: |
+      #     ENVIRONMENT="${{ github.event.inputs.environment }}"
+      #     cd terraform
+      #     terraform init
+      #     terraform apply -auto-approve -var="environment=$ENVIRONMENT"
 
   terraform-plan:
     needs: bootstrap-backend
