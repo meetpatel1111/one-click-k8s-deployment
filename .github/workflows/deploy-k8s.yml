@@ -39,11 +39,12 @@ jobs:
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           aws configure set default.region us-east-1
 
-      - name: Bootstrap Backend (create S3 + DynamoDB)
+      - name: Bootstrap Backend (S3 + DynamoDB)
         run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
           cd terraform
           terraform init -backend=false
-          terraform apply -auto-approve -target=aws_s3_bucket.tfstate -target=aws_dynamodb_table.tf_locks
+          terraform apply -auto-approve -var="environment=$ENVIRONMENT" backend-bootstrap.tf
 
   terraform-plan:
     needs: bootstrap-backend
@@ -74,8 +75,6 @@ jobs:
           fi
           echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
           echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
-          echo "Using environment: $ENVIRONMENT"
-          echo "TFVARS file: $TFVARS_FILE"
 
       - name: Configure AWS CLI
         run: |
@@ -86,7 +85,7 @@ jobs:
           aws configure set default.region $AWS_REGION
           echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
 
-      - name: Terraform Init (with backend)
+      - name: Terraform Init (with remote backend)
         run: |
           cd terraform
           terraform init -input=false -reconfigure \
@@ -100,7 +99,7 @@ jobs:
           cd terraform
           terraform plan -var-file=$TFVARS_FILE -out=terraform.tfplan
 
-      - name: Upload Terraform Plan Artifact
+      - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
