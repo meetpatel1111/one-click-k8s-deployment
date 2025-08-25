@@ -17,7 +17,7 @@ resource "kubernetes_deployment" "nginx" {
         container { 
           name="nginx"
           image="nginx:latest"
-          ports {
+          port {
             container_port=80
           } 
         }
@@ -47,7 +47,7 @@ resource "kubernetes_deployment" "nodejs" {
         container { 
           name="nodejs-app"
           image=var.nodejs_docker_image
-          ports{
+          port{
             container_port=3000
           } 
         }
@@ -78,7 +78,7 @@ resource "kubernetes_deployment" "k8sgpt" {
         container { 
           name="k8sgpt"
           image="ghcr.io/k8sgpt-ai/k8sgpt:latest"
-          ports {
+          port {
             container_port=80
           } 
         }
