@@ -47,7 +47,8 @@ resource "kubernetes_deployment" "nodejs" {
         container { 
           name="nodejs-app"
           image=var.nodejs_docker_image
-          ports{container_port=3000
+          ports{
+            container_port=3000
           } 
         }
       }
