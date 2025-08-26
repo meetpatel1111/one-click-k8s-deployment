@@ -39,34 +39,57 @@ env:
 
 jobs:
   security-scan:
-    if: ${{ github.event.inputs.run_security_scan == 'true' || (github.event.inputs.run_security_scan == 'false' && github.event.inputs.run_terraform == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v5
 
-      - name: Run tfsec (Terraform IaC scan)
+      # Terraform IaC scan
+      - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          directory: terraform   
-          format: 'csv'    
-          soft_fail: true        # do not fail the workflow(false for failure)
+          working_directory: terraform
+          format: sarif          # SARIF works for GitHub Code Scanning
+          soft_fail: true
+          github_token: ${{ secrets.GH_PAT }}
 
+      # Trivy scan nginx
       - name: Run Trivy scan on nginx
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: nginx:latest
-          format: 'github'
-          exit-code: '0'          # do not fail workflow(1 for failure)
+          format: sarif           # SARIF format for GitHub scanning
+          exit-code: '0'
           severity: 'CRITICAL,HIGH'
+          github-token: ${{ secrets.GH_PAT }}
+          output: trivy-nginx.sarif
 
+      # Trivy scan k8sgpt
       - name: Run Trivy scan on k8sgpt
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ghcr.io/k8sgpt-ai/k8sgpt:latest
-          format: 'github'
-          exit-code: '0'          # do not fail workflow(1 for failure)
+          format: sarif
+          exit-code: '0'
           severity: 'CRITICAL,HIGH'
+          github-token: ${{ secrets.GH_PAT }}
+          output: trivy-k8sgpt.sarif
+
+      # Upload SARIF reports for GitHub Code Scanning
+      - name: Upload tfsec report
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: tfsec.sarif
+
+      - name: Upload Trivy reports
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-nginx.sarif
+
+      - name: Upload Trivy k8sgpt report
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-k8sgpt.sarif
 
   terraform-k8s:
     if: ${{ github.event.inputs.run_terraform == 'true' }}
