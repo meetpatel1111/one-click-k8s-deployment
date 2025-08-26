@@ -96,6 +96,7 @@ jobs:
         with:
           sarif_file: trivy-nginx.sarif
           wait-for-processing: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Upload trivy  SARIF to GitHub Code Scanning
       - name: Upload merged SARIF report
@@ -103,6 +104,7 @@ jobs:
         with:
           sarif_file: trivy-k8sgpt.sarif
           wait-for-processing: true
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       # Upload trivy  SARIF to GitHub Code Scanning
       - name: Upload merged SARIF report
@@ -110,6 +112,7 @@ jobs:
         with:
           sarif_file: terraform/tfsec.sarif
           wait-for-processing: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   terraform-k8s:
     if: ${{ github.event.inputs.run_terraform == 'true' }}
