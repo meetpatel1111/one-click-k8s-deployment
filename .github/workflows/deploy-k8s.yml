@@ -61,7 +61,7 @@ jobs:
           format: sarif           # SARIF format for GitHub scanning
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
-          github-token: ${{ secrets.GH_PAT }}
+          github-pat: ${{ secrets.GH_PAT }}
           output: trivy-nginx.sarif
 
       # Trivy scan k8sgpt
@@ -72,7 +72,7 @@ jobs:
           format: sarif
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
-          github-token: ${{ secrets.GH_PAT }}
+          github-pat: ${{ secrets.GH_PAT }}
           output: trivy-k8sgpt.sarif
 
       # Upload SARIF reports for GitHub Code Scanning
@@ -207,6 +207,20 @@ jobs:
           exit-code: '1'           # fail workflow on CRITICAL/HIGH
           severity: 'CRITICAL,HIGH'
 
+      - name: Run Trivy scan on mini-budget-tracker
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: $BUDGET_APP_IMAGE
+          format: sarif
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+          github-pat: ${{ secrets.GH_PAT }}
+          output: trivy-mini-budget-tracker.sarif
+
+      - name: Upload Trivy mini-budget-tracker reports
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-mini-budget-tracker.sarif
 
       - name: Update kubeconfig
         if: ${{ github.event.inputs.action == 'apply' }}
