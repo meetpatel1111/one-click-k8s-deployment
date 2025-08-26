@@ -11,8 +11,18 @@ spec:
   hostPath:
     path: /mnt/data/mini-budget
 
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mini-budget-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 
-# k8s-deployments.yaml
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -36,26 +46,26 @@ spec:
         - containerPort: 80
 
 ---
-# apiVersion: apps/v1
-# kind: Deployment
-# metadata:
-#   name: nodejs-app
-#   namespace: default
-# spec:
-#   replicas: 2
-#   selector:
-#     matchLabels:
-#       app: nodejs-app
-#   template:
-#     metadata:
-#       labels:
-#         app: nodejs-app
-#     spec:
-#       containers:
-#       - name: nodejs-app
-#         image: "meetpatel1111/nodejs-app:${ENVIRONMENT}" # replace with your image
-#         ports:
-#         - containerPort: 3000
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nodejs-app
+  template:
+    metadata:
+      labels:
+        app: nodejs-app
+    spec:
+      containers:
+      - name: nodejs-app
+        image: "meetpatel1111/nodejs-app:${ENVIRONMENT}"
+        ports:
+        - containerPort: 3000
 
 ---
 apiVersion: apps/v1
@@ -75,7 +85,7 @@ spec:
     spec:
       containers:
       - name: mini-budget-tracker
-        image: "meetpatel1111/mini-budget-tracker:${ENVIRONMENT}" # replace with your image
+        image: "meetpatel1111/mini-budget-tracker:${ENVIRONMENT}"
         ports:
         - containerPort: 3000
         volumeMounts:
@@ -107,3 +117,88 @@ spec:
         image: ghcr.io/k8sgpt-ai/k8sgpt:latest
         ports:
         - containerPort: 80
+
+---
+# Horizontal Pod Autoscalers
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nodejs-app-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nodejs-app
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: mini-budget-tracker-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: mini-budget-tracker
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: k8sgpt-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: k8sgpt
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50

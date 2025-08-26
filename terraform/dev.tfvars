@@ -1,5 +1,6 @@
 aws_region                = "us-east-1"
-cluster_name              = "dev-eks-cluster"
+environment               = "dev"
+cluster_name              = "eks-cluster"
 vpc_cidr                  = "10.0.0.0/16"
 public_subnet_count       = 2
 private_subnet_count      = 2
@@ -9,7 +10,7 @@ desired_capacity          = 2
 min_size                  = 1
 max_size                  = 3
 nodejs_docker_image       = "meetpatel1111/nodejs-app:dev"
-mini-budget-tracker_image = "meetpatel1111/mini-budget-tracker:dev"
+mini_budget_tracker_image = "meetpatel1111/mini-budget-tracker:dev"
 nginx_replicas            = 1
 nodejs_replicas           = 1
 k8sgpt_replicas           = 1
