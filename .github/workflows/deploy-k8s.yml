@@ -76,18 +76,21 @@ jobs:
           github-pat: ${{ secrets.GH_PAT }}
           output: trivy-k8sgpt.sarif
 
-      # Merge all SARIF files
-      - name: Merge SARIF files
+      # Merge SARIF files
+      - name: Merge SARIF reports
         run: |
-          pip install sarif-merge
-          sarif-merge terraform/tfsec.sarif trivy-nginx.sarif trivy-k8sgpt.sarif > security-report.sarif
+          python3 -m sarif copy terraform/tfsec.sarif trivy-nginx.sarif trivy-k8sgpt.sarif > security-report.sarif
 
-      # Upload merged SARIF report
+      # Optionally generate CSV for your own reference
+      - name: Convert SARIF to CSV
+        run: |
+          python3 -m sarif csv security-report.sarif > security-report.csv
+
+      # Upload merged SARIF to GitHub Code Scanning
       - name: Upload merged SARIF report
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: security-report.sarif
-          token: ${{ secrets.GH_PAT }}
           wait-for-processing: true
 
   terraform-k8s:
