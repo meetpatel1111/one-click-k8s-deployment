@@ -85,6 +85,8 @@ jobs:
       # Merge SARIF files
       - name: Merge SARIF reports
         run: |
+          pwd
+          ls -la
           sarif copy terraform/tfsec.sarif trivy-nginx.sarif trivy-k8sgpt.sarif > security-report.sarif
           sarif csv security-report.sarif > security-report.csv
 
