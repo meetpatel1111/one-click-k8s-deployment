@@ -53,7 +53,7 @@ jobs:
           soft_fail: true        # do not fail the workflow(false for failure)
 
       - name: Run Trivy scan on nginx
-        uses: aquasecurity/trivy-action@0..28.0
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: nginx:latest
           format: 'github'
@@ -61,7 +61,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Run Trivy scan on k8sgpt
-        uses: aquasecurity/trivy-action@0..28.0
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ghcr.io/k8sgpt-ai/k8sgpt:latest
           format: 'github'
