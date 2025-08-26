@@ -6,11 +6,18 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
+// Middlewares
 app.use(bodyParser.json());
 app.use(cors());
-app.use(express.static(".")); 
+
+// Serve static files with path prefix for Ingress
+app.use('/mini-budget-tracker', express.static(path.join(__dirname, "public")));
+
+// Routes for HTML pages (also with prefix)
+app.get('/mini-budget-tracker', (req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
+app.get('/mini-budget-tracker/data', (req, res) => res.sendFile(path.join(__dirname, "public/data.html")));
 
 const DATA_FILE = path.join(__dirname, "data.json");
 
@@ -29,14 +36,12 @@ function saveData(data) {
 app.get("/api/transactions", (req, res) => {
   let data = readData();
 
-  // Filters via query params
   const { category, min, max, sortBy, order } = req.query;
 
   if (category) data = data.filter(t => t.category.toLowerCase() === category.toLowerCase());
   if (min) data = data.filter(t => t.amount >= parseFloat(min));
   if (max) data = data.filter(t => t.amount <= parseFloat(max));
 
-  // Sorting
   if (sortBy) {
     data.sort((a, b) => {
       if (order === "desc") return b[sortBy] > a[sortBy] ? 1 : -1;
@@ -79,6 +84,7 @@ app.delete("/api/transactions/:id", (req, res) => {
   res.json({ success: true });
 });
 
+// ✅ Update transaction
 app.put("/api/transactions/:id", (req, res) => {
   const { date, type, category, amount, notes, recurring } = req.body;
   let data = readData();
@@ -98,7 +104,7 @@ app.put("/api/transactions/:id", (req, res) => {
   res.json(transaction);
 });
 
-// ✅ Summary (total income, expenses, balance)
+// ✅ Summary: total income, expenses, balance
 app.get("/api/summary", (req, res) => {
   const data = readData();
   const income = data.filter(t => t.amount > 0).reduce((a, b) => a + b.amount, 0);
@@ -107,7 +113,7 @@ app.get("/api/summary", (req, res) => {
   res.json({ income, expense, balance });
 });
 
-// ✅ Export data as CSV
+// ✅ Export as CSV
 app.get("/api/export", (req, res) => {
   const data = readData();
   const csv = [
@@ -117,7 +123,7 @@ app.get("/api/export", (req, res) => {
 
   res.header("Content-Type", "text/csv");
   res.attachment("transactions.csv");
-  return res.send(csv);
+  res.send(csv);
 });
 
 // ✅ Clear all data
@@ -126,4 +132,5 @@ app.delete("/api/clear", (req, res) => {
   res.json({ success: true });
 });
 
+// Start server
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
