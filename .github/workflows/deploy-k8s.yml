@@ -49,9 +49,9 @@ jobs:
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: terraform
-          format: sarif          # SARIF works for GitHub Code Scanning
+          format: csv         
           soft_fail: true
-          output: terraform/tfsec.sarif
+          # output: terraform/tfsec.sarif
           github_token: ${{ secrets.GH_PAT }}
 
       # Trivy scan nginx
@@ -59,22 +59,22 @@ jobs:
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: nginx:latest
-          format: sarif           # SARIF format for GitHub scanning
+          format: tabel           
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           github-pat: ${{ secrets.GH_PAT }}
-          output: trivy-nginx.sarif
+          # output: trivy-nginx.sarif
 
       # Trivy scan k8sgpt
       - name: Run Trivy scan on k8sgpt
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ghcr.io/k8sgpt-ai/k8sgpt:latest
-          format: sarif
+          format: table
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           github-pat: ${{ secrets.GH_PAT }}
-          output: trivy-k8sgpt.sarif
+          # output: trivy-k8sgpt.sarif
 
       # # Install sarif-tools
       # - name: Install SARIF tools
@@ -90,29 +90,29 @@ jobs:
       #     sarif copy terraform/tfsec.sarif trivy-nginx.sarif trivy-k8sgpt.sarif > security-report.sarif
       #     sarif csv security-report.sarif > security-report.csv
 
-      # Upload trivy nginx SARIF to GitHub Code Scanning
-      - name: Upload merged SARIF report
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-nginx.sarif
-          wait-for-processing: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # # Upload trivy nginx SARIF to GitHub Code Scanning
+      # - name: Upload merged SARIF report
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: trivy-nginx.sarif
+      #     wait-for-processing: true
+      #     token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload trivy  SARIF to GitHub Code Scanning
-      - name: Upload merged SARIF report
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-k8sgpt.sarif
-          wait-for-processing: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # # Upload trivy  SARIF to GitHub Code Scanning
+      # - name: Upload merged SARIF report
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: trivy-k8sgpt.sarif
+      #     wait-for-processing: true
+      #     token: ${{ secrets.GITHUB_TOKEN }}
       
-      # Upload trivy  SARIF to GitHub Code Scanning
-      - name: Upload merged SARIF report
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: terraform/tfsec.sarif
-          wait-for-processing: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # # Upload trivy  SARIF to GitHub Code Scanning
+      # - name: Upload merged SARIF report
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: terraform/tfsec.sarif
+      #     wait-for-processing: true
+      #     token: ${{ secrets.GITHUB_TOKEN }}
 
   terraform-k8s:
     if: ${{ github.event.inputs.run_terraform == 'true' }}
