@@ -219,7 +219,7 @@ jobs:
         run: |
           BUDGET_APP_IMAGE=$(grep mini-budget-tracker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           cd apps/mini-budget-tracker
-          docker build -t $BUDGET_APP_IMAGE .
+          docker build --progress=plain --no-cache -t $BUDGET_APP_IMAGE .
           docker push $BUDGET_APP_IMAGE
 
       - name: Run Trivy scan on mini-budget-tracker
