@@ -76,15 +76,21 @@ jobs:
           github-pat: ${{ secrets.GH_PAT }}
           output: trivy-k8sgpt.sarif
 
+      # Install sarif-tools
+      - name: Install SARIF tools
+        run: |
+          python3 -m pip install --user sarif-tools
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       # Merge SARIF files
       - name: Merge SARIF reports
         run: |
-          python3 -m sarif copy terraform/tfsec.sarif trivy-nginx.sarif trivy-k8sgpt.sarif > security-report.sarif
+          sarif copy terraform/tfsec.sarif trivy-nginx.sarif trivy-k8sgpt.sarif > security-report.sarif
 
-      # Optionally generate CSV for your own reference
+      # Convert SARIF to CSV
       - name: Convert SARIF to CSV
         run: |
-          python3 -m sarif csv security-report.sarif > security-report.csv
+          sarif csv security-report.sarif > security-report.csv
 
       # Upload merged SARIF to GitHub Code Scanning
       - name: Upload merged SARIF report
