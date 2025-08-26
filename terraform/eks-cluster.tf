@@ -77,13 +77,6 @@ resource "aws_eks_cluster" "eks" {
     endpoint_public_access  = var.enable_public_access # toggle via variable
   }
 
-  encryption_config {
-    resources = ["secrets"]
-    provider {
-      #key_arn = var.kms_key_arn # optional, for secret encryption
-    }
-  }
-
   tags = {
     Name        = "${var.cluster_name}-${var.environment}-eks"
     Environment = var.environment
