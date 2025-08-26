@@ -77,17 +77,17 @@ jobs:
 
       # Upload SARIF reports for GitHub Code Scanning
       - name: Upload tfsec report
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: tfsec.sarif
 
-      - name: Upload Trivy reports
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Upload Trivy nginx reports
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-nginx.sarif
 
       - name: Upload Trivy k8sgpt report
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-k8sgpt.sarif
 
@@ -218,7 +218,7 @@ jobs:
           output: trivy-mini-budget-tracker.sarif
 
       - name: Upload Trivy mini-budget-tracker reports
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-mini-budget-tracker.sarif
 
