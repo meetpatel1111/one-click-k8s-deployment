@@ -18,3 +18,8 @@ variable "nginx_hpa_max" {}
 variable "nodejs_hpa_max" {}
 variable "k8sgpt_hpa_max" {}
 variable "mini_budget_tracker_hpa_max" {}
+variable "enable_public_access" {
+  description = "Toggle for making EKS public endpoint accessible"
+  type        = bool
+  default     = true
+}

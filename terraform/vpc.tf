@@ -38,8 +38,9 @@ resource "aws_internet_gateway" "igw" {
 
 # EIP + NAT Gateway (for private subnet access to internet)
 resource "aws_eip" "nat" {
-  vpc  = true
-  tags = { Name = "${var.cluster_name}-nat-eip" }
+  tags = {
+    Name = "${var.cluster_name}-nat-eip"
+  }
 }
 
 resource "aws_nat_gateway" "nat" {

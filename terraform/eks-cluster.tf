@@ -80,7 +80,7 @@ resource "aws_eks_cluster" "eks" {
   encryption_config {
     resources = ["secrets"]
     provider {
-      key_arn = var.kms_key_arn # optional, for secret encryption
+      #key_arn = var.kms_key_arn # optional, for secret encryption
     }
   }
 
