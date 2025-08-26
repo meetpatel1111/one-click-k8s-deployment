@@ -217,7 +217,7 @@ jobs:
       - name: Build & Push mini-budget-tracker App Image
         if: ${{ github.event.inputs.action == 'apply' }}
         run: |
-          BUDGET_APP_IMAGE=$(grep mini-budget-tracker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          BUDGET_APP_IMAGE=$(grep mini_budget_tracker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           cd apps/mini-budget-tracker
           docker build --progress=plain --no-cache -t $BUDGET_APP_IMAGE .
           docker push $BUDGET_APP_IMAGE
