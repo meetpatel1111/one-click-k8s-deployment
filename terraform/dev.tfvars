@@ -11,6 +11,12 @@ min_size                  = 1
 max_size                  = 3
 nodejs_docker_image       = "meetpatel1111/nodejs-app:dev"
 mini_budget_tracker_image = "meetpatel1111/mini-budget-tracker:dev"
-nginx_replicas            = 1
-nodejs_replicas           = 1
-k8sgpt_replicas           = 1
+nginx_replicas = 2
+nginx_hpa_max = 5
+nodejs_replicas = 2
+nodejs_hpa_max = 5
+mini_budget_tracker_replicas = 2
+mini_budget_tracker_hpa_max = 5
+k8sgpt_replicas = 1
+k8sgpt_hpa_max = 3
+
