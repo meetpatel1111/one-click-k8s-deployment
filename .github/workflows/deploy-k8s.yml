@@ -234,16 +234,16 @@ jobs:
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: $BUDGET_APP_IMAGE
-          format: sarif
+          format: table
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           github-pat: ${{ secrets.GH_PAT }}
-          output: trivy-mini-budget-tracker.sarif
+          # output: trivy-mini-budget-tracker.sarif
 
-      - name: Upload Trivy mini-budget-tracker reports
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-mini-budget-tracker.sarif
+      # - name: Upload Trivy mini-budget-tracker reports
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: trivy-mini-budget-tracker.sarif
 
       - name: Update kubeconfig
         if: ${{ github.event.inputs.action == 'apply' }}
