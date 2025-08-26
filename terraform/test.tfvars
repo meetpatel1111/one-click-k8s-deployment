@@ -1,5 +1,5 @@
 aws_region                   = "us-east-1"
-environment                  = "tst"
+environment                  = "test"
 cluster_name                 = "eks-cluster"
 vpc_cidr                     = "10.1.0.0/16"
 public_subnet_count          = 2

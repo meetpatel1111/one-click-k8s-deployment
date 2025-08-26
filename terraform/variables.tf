@@ -1,3 +1,4 @@
+variable "environment" {}
 variable "aws_region" {}
 variable "cluster_name" {}
 variable "vpc_cidr" {}
@@ -12,3 +13,8 @@ variable "nodejs_docker_image" {}
 variable "nginx_replicas" {}
 variable "nodejs_replicas" {}
 variable "k8sgpt_replicas" {}
+variable "mini_budget_tracker_replicas" {}
+variable "nginx_hpa_max" {}
+variable "nodejs_hpa_max" {}
+variable "k8sgpt_hpa_max" {}
+variable "mini_budget_tracker_hpa_max" {}
