@@ -51,6 +51,7 @@ jobs:
           working_directory: terraform
           format: sarif          # SARIF works for GitHub Code Scanning
           soft_fail: true
+          output: terraform/tfsec.sarif
           github_token: ${{ secrets.GH_PAT }}
 
       # Trivy scan nginx
@@ -75,21 +76,19 @@ jobs:
           github-pat: ${{ secrets.GH_PAT }}
           output: trivy-k8sgpt.sarif
 
-      # Upload SARIF reports for GitHub Code Scanning
-      - name: Upload tfsec report
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: tfsec.sarif
+      # Merge all SARIF files
+      - name: Merge SARIF files
+        run: |
+          pip install sarif-merge
+          sarif-merge terraform/tfsec.sarif trivy-nginx.sarif trivy-k8sgpt.sarif > security-report.sarif
 
-      - name: Upload Trivy nginx reports
+      # Upload merged SARIF report
+      - name: Upload merged SARIF report
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: trivy-nginx.sarif
-
-      - name: Upload Trivy k8sgpt report
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-k8sgpt.sarif
+          sarif_file: security-report.sarif
+          token: ${{ secrets.GH_PAT }}
+          wait-for-processing: true
 
   terraform-k8s:
     if: ${{ github.event.inputs.run_terraform == 'true' }}
