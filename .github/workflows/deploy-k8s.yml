@@ -20,6 +20,16 @@ on:
           - apply
           - destroy
           - refresh
+      run_security_scan:
+        description: 'Run security scans only?'
+        required: false
+        default: false
+        type: boolean
+      run_terraform:
+        description: 'Run Terraform deploy?'
+        required: false
+        default: false
+        type: boolean
 
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -28,7 +38,35 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 jobs:
+  security-scan:
+    if: ${{ github.event.inputs.run_security_scan == 'true' || (github.event.inputs.run_security_scan == 'false' && github.event.inputs.run_terraform == 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v5
+
+      - name: Run tfsec (Terraform IaC scan)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working-directory: terraform/
+          soft-fail: false
+
+      - name: Run Trivy scan on nginx
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: nginx:latest
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy scan on k8sgpt
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ghcr.io/k8sgpt-ai/k8sgpt:latest
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
   terraform-k8s:
+    if: ${{ github.event.inputs.run_terraform == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -134,6 +172,15 @@ jobs:
           cd apps/mini-budget-tracker
           docker build -t $BUDGET_APP_IMAGE .
           docker push $BUDGET_APP_IMAGE
+
+      - name: Run Trivy scan on mini-budget-tracker
+        if: ${{ github.event.inputs.action == 'apply' }}
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: $BUDGET_APP_IMAGE
+          exit-code: '1'           # fail workflow on CRITICAL/HIGH
+          severity: 'CRITICAL,HIGH'
+
 
       - name: Update kubeconfig
         if: ${{ github.event.inputs.action == 'apply' }}
