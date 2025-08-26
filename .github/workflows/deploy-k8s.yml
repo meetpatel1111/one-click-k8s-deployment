@@ -86,10 +86,6 @@ jobs:
       - name: Merge SARIF reports
         run: |
           sarif copy terraform/tfsec.sarif trivy-nginx.sarif trivy-k8sgpt.sarif > security-report.sarif
-
-      # Convert SARIF to CSV
-      - name: Convert SARIF to CSV
-        run: |
           sarif csv security-report.sarif > security-report.csv
 
       # Upload merged SARIF to GitHub Code Scanning
