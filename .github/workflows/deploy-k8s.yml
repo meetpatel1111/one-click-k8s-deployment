@@ -209,6 +209,15 @@ jobs:
           github-pat: ${{ secrets.GH_PAT }}
           # output: trivy-mini-budget-tracker.sarif
 
+      - name: Terraform Init for Kubernetes
+        run: |
+          cd terraform
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=tf-state-${{ github.event.inputs.environment }}-state" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="dynamodb_table=terraform-locks-${{ github.event.inputs.environment }}"
+
       - name: Update kubeconfig
         run: |
           AWS_REGION=$(grep aws_region terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
