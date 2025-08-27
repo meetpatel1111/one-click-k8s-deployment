@@ -32,7 +32,7 @@ spec:
                 port:
                   number: 80
           # Uncomment below to add Node.js service
-          - path: /nodejs(/|$)(.*)
+          - path: /nodejs
             pathType: Prefix
             backend:
               service:
