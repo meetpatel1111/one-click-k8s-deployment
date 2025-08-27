@@ -19,6 +19,7 @@ spec:
         image: "meetpatel1111/nodejs-app:${ENVIRONMENT}"
         ports:
         - containerPort: 3000
+        imagePullPolicy: Always 
 
 ---
 apiVersion: v1
