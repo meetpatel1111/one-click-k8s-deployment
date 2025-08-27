@@ -189,7 +189,7 @@ jobs:
           NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           echo "NODEJS_IMAGE=$NODEJS_IMAGE" >> $GITHUB_ENV
           cd apps/nodejs-app
-          docker build -t $NODEJS_IMAGE .
+          docker build --no-cache -t $NODEJS_IMAGE .
           docker push $NODEJS_IMAGE
 
 #      - name: Build & Push mini-budget-tracker App Image
