@@ -223,14 +223,6 @@ jobs:
 #          docker push $BUDGET_APP_IMAGE
 
       - name: Run Trivy scan on mini-budget-tracker
-        if: ${{ github.event.inputs.action == 'apply' }}
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: $NODEJS_IMAGE
-          exit-code: '1'           # fail workflow on CRITICAL/HIGH
-          severity: 'CRITICAL,HIGH'
-
-      - name: Run Trivy scan on mini-budget-tracker
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: $NODEJS_IMAGE
