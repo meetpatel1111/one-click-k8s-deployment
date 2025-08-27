@@ -206,34 +206,34 @@ jobs:
               ;;
           esac
 
-      # - name: Build & Push Node.js App Image
-      #   if: ${{ github.event.inputs.action == 'apply' }}
-      #   run: |
-      #     NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-      #     cd apps/nodejs-app
-      #     docker build -t $NODEJS_IMAGE .
-      #     docker push $NODEJS_IMAGE
-
-      - name: Build & Push mini-budget-tracker App Image
+      - name: Build & Push Node.js App Image
         if: ${{ github.event.inputs.action == 'apply' }}
         run: |
-          BUDGET_APP_IMAGE=$(grep mini_budget_tracker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          cd apps/mini-budget-tracker
-          docker build --progress=plain --no-cache -t $BUDGET_APP_IMAGE .
-          docker push $BUDGET_APP_IMAGE
+          NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          cd apps/nodejs-app
+          docker build -t $NODEJS_IMAGE .
+          docker push $NODEJS_IMAGE
+
+#      - name: Build & Push mini-budget-tracker App Image
+#        if: ${{ github.event.inputs.action == 'apply' }}
+#        run: |
+#          BUDGET_APP_IMAGE=$(grep mini_budget_tracker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+#          cd apps/mini-budget-tracker
+#          docker build --progress=plain --no-cache -t $BUDGET_APP_IMAGE .
+#          docker push $BUDGET_APP_IMAGE
 
       - name: Run Trivy scan on mini-budget-tracker
         if: ${{ github.event.inputs.action == 'apply' }}
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: $BUDGET_APP_IMAGE
+          image-ref: $NODEJS_IMAGE
           exit-code: '1'           # fail workflow on CRITICAL/HIGH
           severity: 'CRITICAL,HIGH'
 
       - name: Run Trivy scan on mini-budget-tracker
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: $BUDGET_APP_IMAGE
+          image-ref: $NODEJS_IMAGE
           format: table
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
