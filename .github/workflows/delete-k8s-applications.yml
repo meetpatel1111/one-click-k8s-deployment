@@ -1,0 +1,133 @@
+name: Delete Kubernetes Applications
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to target (dev, test)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - test
+      dry_run:
+        description: 'Perform a dry run (no actual deletion)'
+        required: false
+        default: true
+        type: boolean
+      apps_to_delete:
+        description: 'Comma-separated list of apps to delete (nodejs-app, nginx, k8sgpt, mini-budget-tracker)'
+        required: false
+        default: 'nodejs-app,nginx,k8sgpt'
+      confirm:
+        description: 'Confirm deletion (must be true to actually delete)'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  delete-k8s-apps:
+    if: ${{ github.event.inputs.confirm == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v5
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+    
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init (Remote S3 Backend)
+        run: |
+          cd terraform
+          export AWS_REGION="us-east-1"
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
+
+      - name: Update kubeconfig
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          TFVARS_FILE="${ENVIRONMENT}.tfvars"
+          AWS_REGION=$(grep aws_region terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          CLUSTER_NAME=$(terraform -chdir=terraform output -raw cluster_name)
+          aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+
+      - name: Parse Apps to Delete
+        id: parse_apps
+        run: |
+          echo "APPS_LIST=${{ github.event.inputs.apps_to_delete }}" >> $GITHUB_ENV
+          echo "Apps to delete: $APPS_LIST"
+
+      - name: Delete Kubernetes Resources
+        run: |
+          set -e
+          DRY_RUN=${{ github.event.inputs.dry_run }}
+          for APP in $(echo $APPS_LIST | tr "," "\n"); do
+            YAML_FILE="k8s/${APP}.yaml"
+            if [[ -f "$YAML_FILE" ]]; then
+              if [[ "$DRY_RUN" == "true" ]]; then
+                echo "[DRY-RUN] kubectl delete -f $YAML_FILE --ignore-not-found"
+                kubectl delete -f $YAML_FILE --ignore-not-found --dry-run=client
+              else
+                echo "Deleting $APP..."
+                kubectl delete -f $YAML_FILE --ignore-not-found || echo "Error deleting $APP, continuing..."
+              fi
+            else
+              echo "YAML file for $APP not found: $YAML_FILE"
+            fi
+          done
+
+      - name: Delete Ingress (optional, last)
+        run: |
+          DRY_RUN=${{ github.event.inputs.dry_run }}
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "[DRY-RUN] kubectl delete -f k8s/ingress.yaml --ignore-not-found"
+            kubectl delete -f k8s/ingress.yaml --ignore-not-found --dry-run=client
+          else
+            echo "Deleting Ingress..."
+            kubectl delete -f k8s/ingress.yaml --ignore-not-found
+          fi
+
+      - name: Delete Secrets (optional)
+        run: |
+          DRY_RUN=${{ github.event.inputs.dry_run }}
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "[DRY-RUN] kubectl delete secret k8sgpt-secret --ignore-not-found"
+            kubectl delete secret k8sgpt-secret --ignore-not-found --dry-run=client
+          else
+            echo "Deleting Secrets..."
+            kubectl delete secret k8sgpt-secret --ignore-not-found
+          fi
+
+      - name: Verify Remaining Resources
+        run: |
+          echo "Remaining Deployments:"
+          kubectl get deployments -A || true
+          echo "Remaining Services:"
+          kubectl get svc -A || true
+          echo "Remaining HPA:"
+          kubectl get hpa -A || true
+          echo "Remaining Ingress:"
+          kubectl get ingress -A || true
+
+  confirm-step:
+    if: ${{ github.event.inputs.confirm != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deletion Not Confirmed
+        run: |
+          echo "Deletion not confirmed. Set 'confirm' input to true to delete Kubernetes apps."
+          exit 1
