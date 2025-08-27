@@ -30,6 +30,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_application_deployment:
+        description: 'Run Terraform deploy?'
+        required: false
+        default: false
+        type: boolean
 
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -39,6 +44,7 @@ env:
 
 jobs:
   security-scan:
+    if: ${{ github.event.inputs.run_security_scan == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
@@ -76,44 +82,6 @@ jobs:
           github-pat: ${{ secrets.GH_PAT }}
           # output: trivy-k8sgpt.sarif
 
-      # # Install sarif-tools
-      # - name: Install SARIF tools
-      #   run: |
-      #     python3 -m pip install --user sarif-tools
-      #     echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      # # Merge SARIF files
-      # - name: Merge SARIF reports
-      #   run: |
-      #     pwd
-      #     ls -la
-      #     sarif copy terraform/tfsec.sarif trivy-nginx.sarif trivy-k8sgpt.sarif > security-report.sarif
-      #     sarif csv security-report.sarif > security-report.csv
-
-      # # Upload trivy nginx SARIF to GitHub Code Scanning
-      # - name: Upload merged SARIF report
-      #   uses: github/codeql-action/upload-sarif@v3
-      #   with:
-      #     sarif_file: trivy-nginx.sarif
-      #     wait-for-processing: true
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-
-      # # Upload trivy  SARIF to GitHub Code Scanning
-      # - name: Upload merged SARIF report
-      #   uses: github/codeql-action/upload-sarif@v3
-      #   with:
-      #     sarif_file: trivy-k8sgpt.sarif
-      #     wait-for-processing: true
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-      
-      # # Upload trivy  SARIF to GitHub Code Scanning
-      # - name: Upload merged SARIF report
-      #   uses: github/codeql-action/upload-sarif@v3
-      #   with:
-      #     sarif_file: terraform/tfsec.sarif
-      #     wait-for-processing: true
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-
   terraform-k8s:
     if: ${{ github.event.inputs.run_terraform == 'true' }}
     runs-on: ubuntu-latest
@@ -128,14 +96,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.0
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
-      - name: Verify kubectl version
-        run: kubectl version --client
 
       - name: Configure AWS CLI
         run: |
@@ -206,8 +166,25 @@ jobs:
               ;;
           esac
 
+  kubernetes-deploy:
+    if: ${{ github.event.inputs.run_application_deployment == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v5
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Verify kubectl version
+        run: kubectl version --client
+
       - name: Build & Push Node.js App Image
-        if: ${{ github.event.inputs.action == 'apply' }}
         run: |
           NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           echo "NODEJS_IMAGE=$NODEJS_IMAGE" >> $GITHUB_ENV
@@ -216,7 +193,6 @@ jobs:
           docker push $NODEJS_IMAGE
 
 #      - name: Build & Push mini-budget-tracker App Image
-#        if: ${{ github.event.inputs.action == 'apply' }}
 #        run: |
 #          BUDGET_APP_IMAGE=$(grep mini_budget_tracker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
 #          cd apps/mini-budget-tracker
@@ -233,13 +209,7 @@ jobs:
           github-pat: ${{ secrets.GH_PAT }}
           # output: trivy-mini-budget-tracker.sarif
 
-      # - name: Upload Trivy mini-budget-tracker reports
-      #   uses: github/codeql-action/upload-sarif@v3
-      #   with:
-      #     sarif_file: trivy-mini-budget-tracker.sarif
-
       - name: Update kubeconfig
-        if: ${{ github.event.inputs.action == 'apply' }}
         run: |
           AWS_REGION=$(grep aws_region terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           CLUSTER_NAME=$(terraform -chdir=terraform output -raw cluster_name)
@@ -249,6 +219,7 @@ jobs:
         run: |
           kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
           kubectl wait --for=condition=available deployment metrics-server -n kube-system --timeout=120s
+
       - name: Export replicas and HPA settings from TFVARS
         run: |
           # Base replicas for Deployments
@@ -290,7 +261,6 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
             
       - name: Apply Kubernetes Deployments * Services
-        if: ${{ github.event.inputs.action == 'apply' }}
         run: |
           kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.0/deploy/static/provider/aws/deploy.yaml
           
@@ -300,10 +270,10 @@ jobs:
             --selector=app.kubernetes.io/component=controller \
             --timeout=180s
           
-          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8s-deployments.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8s-deployments.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8s-deployments.yaml
-          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8s-services.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8s-services.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8s-services.yaml
-          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/ingress.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/ingress.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/ingress.yaml
-          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/hpa.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/hpa.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/hpa.yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/nginx.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/nginx.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/nginx.yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/nodejs-app.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/nodejs-app.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/nodejs-app.yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/mini-budget-tracker.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/mini-budget-tracker.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/mini-budget-tracker.yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8sgpt.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8sgpt.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8sgpt.yaml
 
           # Wait for Ingress IP/Hostname
           echo "Waiting for Ingress endpoint..."
@@ -324,7 +294,6 @@ jobs:
           fi
             
       - name: Verify Kubernetes Deployments & Services
-        if: ${{ github.event.inputs.action == 'apply' }}
         run: |
           kubectl get deployments -A
           kubectl get svc -A
