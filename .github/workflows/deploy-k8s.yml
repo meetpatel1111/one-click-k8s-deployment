@@ -180,7 +180,7 @@ jobs:
 
       - name: Build & Push Node.js App Image
         run: |
-          echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV && echo "TFVARS_FILE=${{ github.event.inputs.environment }}.tfvars" >> $GITHUB_ENV
+          ENVIRONMENT=${{ github.event.inputs.environment }}; TFVARS_FILE="${ENVIRONMENT}.tfvars"; echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV; echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
           NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           echo "NODEJS_IMAGE=$NODEJS_IMAGE" >> $GITHUB_ENV
           cd apps/nodejs-app
