@@ -1,19 +1,18 @@
-#FROM node:18-alpine
-#WORKDIR /app
-#COPY package*.json ./
-#RUN npm install
-#COPY . .
-#EXPOSE 3000
-#CMD ["npm","start"]
+# Use Node.js LTS
+FROM node:18-alpine
 
-# Use a lightweight NGINX image
-FROM nginx:alpine
+# Create app directory
+WORKDIR /usr/src/app
 
-# Copy the index.html file into the default NGINX web directory
-COPY index.html /usr/share/nginx/html/index.html
+# Copy package.json and install dependencies
+COPY package*.json ./
+RUN npm install --only=production
 
-# Expose port 80 to the host machine
-EXPOSE 80
+# Copy rest of the app
+COPY . .
 
-# The default command runs NGINX in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+# Expose port
+EXPOSE 3000
+
+# Run app
+CMD ["npm", "start"]
