@@ -21,39 +21,18 @@ spec:
         averageUtilization: 50
 
 ---
-# apiVersion: autoscaling/v2
-# kind: HorizontalPodAutoscaler
-# metadata:
-#   name: nodejs-app-hpa
-#   namespace: default
-# spec:
-#   scaleTargetRef:
-#     apiVersion: apps/v1
-#     kind: Deployment
-#     name: nodejs-app
-#   minReplicas: $$NODEJS_HPA_MIN
-#   maxReplicas: $$NODEJS_HPA_MAX
-#   metrics:
-#   - type: Resource
-#     resource:
-#       name: cpu
-#       target:
-#         type: Utilization
-#         averageUtilization: 50
-
----
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: mini-budget-tracker-hpa
+  name: nodejs-app-hpa
   namespace: default
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: mini-budget-tracker
-  minReplicas: $MINI_BUDGET_HPA_MIN
-  maxReplicas: $MINI_BUDGET_HPA_MAX
+    name: nodejs-app
+  minReplicas: ${NODEJS_HPA_MIN}
+  maxReplicas: ${NODEJS_HPA_MAX}
   metrics:
   - type: Resource
     resource:
@@ -61,6 +40,27 @@ spec:
       target:
         type: Utilization
         averageUtilization: 50
+
+---
+#apiVersion: autoscaling/v2
+#kind: HorizontalPodAutoscaler
+#metadata:
+#  name: mini-budget-tracker-hpa
+#  namespace: default
+#spec:
+#  scaleTargetRef:
+#    apiVersion: apps/v1
+#    kind: Deployment
+#    name: mini-budget-tracker
+#  minReplicas: ${MINI_BUDGET_HPA_MIN}
+#  maxReplicas: ${MINI_BUDGET_HPA_MAX}
+#  metrics:
+#  - type: Resource
+#    resource:
+#      name: cpu
+#      target:
+#        type: Utilization
+#        averageUtilization: 50
 
 ---
 apiVersion: autoscaling/v2
@@ -73,8 +73,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: k8sgpt
-  minReplicas: K8SGPT_HPA_MIN
-  maxReplicas: K8SGPT_HPA_MAX
+  minReplicas: ${K8SGPT_HPA_MIN}
+  maxReplicas: ${K8SGPT_HPA_MAX}
   metrics:
   - type: Resource
     resource:
