@@ -282,7 +282,13 @@ jobs:
           echo "MINI_BUDGET_HPA_MAX=$MINI_BUDGET_HPA_MAX" >> $GITHUB_ENV
           echo "K8SGPT_HPA_MIN=$K8SGPT_HPA_MIN" >> $GITHUB_ENV
           echo "K8SGPT_HPA_MAX=$K8SGPT_HPA_MAX" >> $GITHUB_ENV
-
+  
+      - name: Create Kubernetes Secret from GitHub Secret
+        run: |
+          kubectl create secret generic k8sgpt-secret \
+            --from-literal=OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+            
       - name: Apply Kubernetes Deployments * Services
         if: ${{ github.event.inputs.action == 'apply' }}
         run: |
