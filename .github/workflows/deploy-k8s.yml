@@ -114,10 +114,6 @@ jobs:
           chmod +x terraform/bootstrap/prebootstrap.sh
           ./terraform/bootstrap/prebootstrap.sh $ENVIRONMENT $AWS_REGION
 
-      - name: Docker Login
-        if: ${{ github.event.inputs.action == 'apply' }}
-        run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-
       - name: Terraform Init (Remote S3 Backend)
         run: |
           cd terraform
@@ -177,6 +173,10 @@ jobs:
 
       - name: Verify kubectl version
         run: kubectl version --client
+      
+      - name: Docker Login
+        if: ${{ github.event.inputs.action == 'apply' }}
+        run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
 
       - name: Build & Push Node.js App Image
         run: |
