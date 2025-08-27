@@ -31,7 +31,7 @@ on:
         default: false
         type: boolean
       run_application_deployment:
-        description: 'Run Terraform deploy?'
+        description: 'Run Application deployment?'
         required: false
         default: false
         type: boolean
@@ -104,13 +104,7 @@ jobs:
           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           aws configure set default.region $AWS_REGION
-          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
-          if [[ "$ENVIRONMENT" == "dev" ]]; then
-            TFVARS_FILE="dev.tfvars"
-          else
-            TFVARS_FILE="test.tfvars"
-          fi
-          echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
+          echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV && echo "TFVARS_FILE=${{ github.event.inputs.environment }}.tfvars" >> $GITHUB_ENV
 
       - name: Pre-bootstrap S3 & DynamoDB
         run: |
@@ -186,6 +180,7 @@ jobs:
 
       - name: Build & Push Node.js App Image
         run: |
+          echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV && echo "TFVARS_FILE=${{ github.event.inputs.environment }}.tfvars" >> $GITHUB_ENV
           NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           echo "NODEJS_IMAGE=$NODEJS_IMAGE" >> $GITHUB_ENV
           cd apps/nodejs-app
