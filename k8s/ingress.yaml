@@ -12,21 +12,21 @@ spec:
     - http:
         paths:
           - path: /nodejs(/|$)(.*)
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: nodejs-service
                 port:
                   number: 3000
           - path: /nginx(/|$)(.*)
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: nginx-service
                 port:
                   number: 80
           - path: /k8sgpt(/|$)(.*)
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: k8sgpt-service
@@ -34,7 +34,7 @@ spec:
                   number: 80
           # Add more apps here
           # - path: /mini-budget-tracker(/|$)(.*)
-          #   pathType: Prefix
+          #   pathType: ImplementationSpecific
           #   backend:
           #     service:
           #       name: mini-budget-tracker-service

@@ -57,24 +57,3 @@ spec:
       target:
         type: Utilization
         averageUtilization: 50
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: main-ingress
-  namespace: default
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-spec:
-  ingressClassName: nginx
-  rules:
-    - http:
-        paths:
-          - path: /nginx
-            pathType: Prefix
-            backend:
-              service:
-                name: nginx-service
-                port:
-                  number: 80

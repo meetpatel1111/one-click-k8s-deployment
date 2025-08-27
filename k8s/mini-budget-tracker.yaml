@@ -52,39 +52,3 @@
 #        persistentVolumeClaim:
 #          claimName: mini-budget-data
 
----
-#apiVersion: v1
-#kind: Service
-#metadata:
-#  name: mini-budget-tracker-service
-#  namespace: default
-#  annotations:
-#    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-#spec:
-#  selector:
-#    app: mini-budget-tracker
-#  type: ClusterIP
-#  ports:
-#    - port: 3000
-#      targetPort: 3000
-
----
-# apiVersion: networking.k8s.io/v1
-# kind: Ingress
-# metadata:
-#   name: main-ingress
-#   namespace: default
-#   annotations:
-#     nginx.ingress.kubernetes.io/rewrite-target: /$2
-# spec:
-#   ingressClassName: nginx
-#   rules:
-#     - http:
-#         paths:
-#           - path: /mini-budget-tracker
-#             pathType: Prefix
-#             backend:
-#               service:
-#                 name: mini-budget-tracker-service
-#                 port:
-#                   number: 3000
