@@ -226,7 +226,7 @@ jobs:
       - name: Run Trivy scan on mini-budget-tracker
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: $NODEJS_IMAGE
+          image-ref: ${{ env.NODEJS_IMAGE }}
           format: table
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
