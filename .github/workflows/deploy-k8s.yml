@@ -281,7 +281,7 @@ jobs:
           
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/nginx.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/nginx.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/nginx.yaml
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/nodejs-app.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/nodejs-app.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/nodejs-app.yaml
-          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/mini-budget-tracker.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/mini-budget-tracker.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/mini-budget-tracker.yaml
+          # ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/mini-budget-tracker.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/mini-budget-tracker.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/mini-budget-tracker.yaml
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8sgpt.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8sgpt.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8sgpt.yaml
 
           # Wait for Ingress IP/Hostname
