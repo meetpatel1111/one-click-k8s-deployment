@@ -17,9 +17,9 @@ on:
         default: true
         type: boolean
       apps_to_delete:
-        description: 'Comma-separated list of apps to delete (nodejs-app, nginx, k8sgpt, mini-budget-tracker)'
+        description: 'Comma-separated list of apps to delete (nodejs-app, nginx, k8sgpt-openai,k8sgpt-google, mini-budget-tracker)'
         required: false
-        default: 'nodejs-app,nginx,k8sgpt'
+        default: 'nodejs-app,nginx,k8sgpt-openai,k8sgpt-google'
       confirm:
         description: 'Confirm deletion (must be true to actually delete)'
         required: true
