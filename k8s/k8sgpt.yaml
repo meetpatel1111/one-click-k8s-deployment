@@ -24,10 +24,30 @@ spec:
         prometheus.io/port: "8081"
         prometheus.io/path: "/metrics"
     spec:
+      serviceAccountName: k8sgpt-analyzer
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      # Spread pods across nodes/zones for HA
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: k8sgpt
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app: k8sgpt
       volumes:
         - name: k8sgpt-config
           emptyDir:
@@ -101,6 +121,10 @@ metadata:
   namespace: default
   labels:
     app: k8sgpt
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8081"
+    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: k8sgpt
