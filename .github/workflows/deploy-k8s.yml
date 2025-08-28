@@ -286,20 +286,6 @@ jobs:
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8sgpt-setup.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8sgpt-setup.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8sgpt-setup.yaml
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/ingress.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/ingress.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/ingress.yaml
 
-      - name: ensure k8sgpt provider is configured (fallback)
-        run: |
-          kubectl -n default wait --for=condition=Ready pod -l app=k8sgpt --timeout=180s
-          KEY="$(kubectl -n default get secret k8sgpt-secret -o jsonpath='{.data.OPENAI_API_KEY}' | base64 -d)"
-          for p in $(kubectl -n default get pod -l app=k8sgpt -o jsonpath='{.items[*].metadata.name}'); do
-            echo "Configuring k8sgpt in $p"
-            for i in 1 2 3 4 5; do
-              kubectl -n default exec "$p" -- /k8sgpt auth update --backend openai --password "$KEY" --model gpt-4o && break || true
-              echo "retry $i/5 in 3s..."; sleep 3
-            done
-            kubectl -n default exec "$p" -- /k8sgpt auth add --backend openai --password "$KEY" --model gpt-4o || true
-            kubectl -n default exec "$p" -- /k8sgpt auth default openai || true
-          done
-
           # Wait for Ingress IP/Hostname
           echo "Waiting for Ingress endpoint..."
           INGRESS_NAME="main-ingress"
