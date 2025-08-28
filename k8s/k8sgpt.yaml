@@ -5,20 +5,93 @@ metadata:
   name: k8sgpt
   namespace: default
 spec:
-  replicas: 1
+  replicas: 2
+  revisionHistoryLimit: 5
   selector:
     matchLabels:
       app: k8sgpt
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
         app: k8sgpt
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/metrics"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: k8sgpt-config
+          emptyDir:
+            sizeLimit: 64Mi
       containers:
-      - name: k8sgpt
-        image: ghcr.io/k8sgpt-ai/k8sgpt:latest
-        ports:
-        - containerPort: 80
+        - name: k8sgpt
+          image: ghcr.io/k8sgpt-ai/k8sgpt:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - serve
+          env:
+            - name: K8SGPT_BACKEND
+              value: openai
+            - name: K8SGPT_MODEL
+              value: gpt-4o
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: k8sgpt-secret
+                  key: OPENAI_API_KEY
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 8081
+          volumeMounts:
+            - name: k8sgpt-config
+              mountPath: /home/nonroot/.config
+          startupProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            failureThreshold: 30
+            periodSeconds: 2
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
 
 ---
 apiVersion: v1
@@ -26,15 +99,19 @@ kind: Service
 metadata:
   name: k8sgpt-service
   namespace: default
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  labels:
+    app: k8sgpt
 spec:
   selector:
     app: k8sgpt
   type: ClusterIP
   ports:
-    - port: 80
-      targetPort: 80
+    - name: http
+      port: 80
+      targetPort: 8080
+    - name: metrics
+      port: 8081
+      targetPort: 8081
 
 ---
 apiVersion: autoscaling/v2
@@ -47,12 +124,37 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: k8sgpt
-  minReplicas: ${K8SGPT_HPA_MIN}
-  maxReplicas: ${K8SGPT_HPA_MAX}
+  minReplicas: 2
+  maxReplicas: 5
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: k8sgpt-pdb
+  namespace: default
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: k8sgpt
