@@ -70,12 +70,12 @@ spec:
   minReplicas: ${NODEJS_HPA_MIN}
   maxReplicas: ${NODEJS_HPA_MAX}
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 30
