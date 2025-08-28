@@ -1,4 +1,3 @@
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -13,28 +12,33 @@ spec:
     - http:
         paths:
           - path: /nodejs(/|$)(.*)
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: nodejs-service
                 port:
                   number: 3000
+
           - path: /nginx(/|$)(.*)
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: nginx-service
                 port:
                   number: 80
+
+          # Metrics → service port 8081 (rewritten to /metrics)
           - path: /k8sgpt/metrics(/|$)(.*)
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: k8sgpt-service
                 port:
                   number: 8081
+
+          # API → service port 80 (rewritten to /)
           - path: /k8sgpt(/|$)(.*)
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: k8sgpt-service
