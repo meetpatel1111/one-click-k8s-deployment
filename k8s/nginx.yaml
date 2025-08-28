@@ -5,7 +5,7 @@ metadata:
   name: nginx
   namespace: default
 spec:
-  replicas: 2
+  replicas: ${NGINX_HPA_MIN}
   selector:
     matchLabels:
       app: nginx

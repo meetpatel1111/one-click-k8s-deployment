@@ -286,6 +286,11 @@ jobs:
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8sgpt-setup.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8sgpt-setup.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8sgpt-setup.yaml
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/ingress.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/ingress.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/ingress.yaml
 
+          echo "Updating k8sgpt secret"
+          OPENAI_KEY="${{ secrets.OPENAI_API_KEY }}"
+          sed "s|__OPENAI_KEY__|${OPENAI_KEY}|g" k8s/k8sgpt.yaml | kubectl apply -f -
+          kubectl -n default rollout status deploy/k8sgpt
+
           # Wait for Ingress IP/Hostname
           echo "Waiting for Ingress endpoint..."
           INGRESS_NAME="main-ingress"
