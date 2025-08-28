@@ -17,6 +17,6 @@ nodejs_replicas              = 2
 nodejs_hpa_max               = 5
 mini_budget_tracker_replicas = 2
 mini_budget_tracker_hpa_max  = 5
-k8sgpt_replicas              = 1
-k8sgpt_hpa_max               = 3
+k8sgpt_replicas              = 2
+k8sgpt_hpa_max               = 4
 
