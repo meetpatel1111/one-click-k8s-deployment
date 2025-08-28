@@ -83,6 +83,10 @@ spec:
           imagePullPolicy: IfNotPresent
           args: ["serve"]
           env:
+            - name: K8SGPT_BACKEND
+              value: openai
+            - name: K8SGPT_MODEL
+              value: gpt-4o
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
