@@ -124,7 +124,8 @@ Please fork, branch (`feature/...`), and submit PRs with detailed commit message
 
 ---
 
-## 📘 Extended Documentation
+## 📑 Documentation Navigation
+
 Full details (400+ line narrative guides) are in `/Documents/`:  
 
 - [DOCUMENTATION.md](./Documents/DOCUMENTATION.md) – General overview  
