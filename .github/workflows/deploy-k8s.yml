@@ -8,19 +8,26 @@ on:
         required: true
         default: 'dev'
         type: choice
-        options: [dev, test]
+        options:
+          - dev
+          - test
       action:
         description: 'Terraform action (apply, destroy, refresh)'
         required: true
         default: 'apply'
         type: choice
-        options: [apply, destroy, refresh]
+        options:
+          - apply
+          - destroy
+          - refresh
       provider:
-        description: 'AI Provider (google, openai) for k8sGPT'
+        description: 'AI Provider(openai, google)'
         required: true
         default: 'google'
         type: choice
-        options: [google, openai]
+        options:
+          - google
+          - openai
       run_security_scan:
         description: 'Run security scans only?'
         required: false
@@ -35,16 +42,6 @@ on:
         description: 'Run Application deployment?'
         required: false
         default: false
-        type: boolean
-      apps:
-        description: 'Apps to deploy (any of: nodejs, nginx, k8sgpt)'
-        required: false
-        default: 'nodejs,nginx,k8sgpt'
-        type: string
-      install_ingress:
-        description: 'Install NGINX Ingress Controller (true/false)'
-        required: false
-        default: true
         type: boolean
 
 env:
@@ -66,13 +63,13 @@ jobs:
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: terraform
-          format: csv
+          format: csv         
           soft_fail: true
+          # output: terraform/tfsec.sarif
           github_token: ${{ secrets.GH_PAT }}
 
-      # Trivy scan nginx (only if present in apps)
+      # Trivy scan nginx
       - name: Run Trivy scan on nginx
-        if: contains(github.event.inputs.apps, 'nginx')
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: nginx:latest
@@ -80,10 +77,10 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           github-pat: ${{ secrets.GH_PAT }}
+          # output: trivy-nginx.sarif
 
-      # Trivy scan k8sgpt (only if present in apps)
+      # Trivy scan k8sgpt
       - name: Run Trivy scan on k8sgpt
-        if: contains(github.event.inputs.apps, 'k8sgpt')
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ghcr.io/k8sgpt-ai/k8sgpt:latest
@@ -91,6 +88,7 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           github-pat: ${{ secrets.GH_PAT }}
+          # output: trivy-k8sgpt.sarif
 
   terraform-k8s:
     if: ${{ github.event.inputs.run_terraform == 'true' }}
@@ -114,15 +112,15 @@ jobs:
           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           aws configure set default.region $AWS_REGION
-          echo "ENVIRONMENT=${ENVIRONMENT}" >> $GITHUB_ENV
-          echo "TFVARS_FILE=${ENVIRONMENT}.tfvars" >> $GITHUB_ENV
+          echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV && echo "TFVARS_FILE=${{ github.event.inputs.environment }}.tfvars" >> $GITHUB_ENV
 
       - name: Pre-bootstrap S3 & DynamoDB
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
+          ACTION="${{ github.event.inputs.action }}"
           AWS_REGION="us-east-1"
           chmod +x terraform/bootstrap/prebootstrap.sh
-          ./terraform/bootstrap/prebootstrap.sh "$ENVIRONMENT" "$AWS_REGION"
+          ./terraform/bootstrap/prebootstrap.sh $ENVIRONMENT $AWS_REGION
 
       - name: Terraform Init (Remote S3 Backend)
         run: |
@@ -134,10 +132,14 @@ jobs:
             -backend-config="region=$AWS_REGION" \
             -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
 
-      - name: Terraform Fmt & Validate
+      - name: Terraform Fmt
         run: |
           cd terraform
           terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: |
+          cd terraform
           terraform validate
 
       - name: Execute Terraform
@@ -171,84 +173,41 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v5
-
-      - name: Validate apps input (nodejs, nginx, k8sgpt only)
-        run: |
-          APPS="${{ github.event.inputs.apps }}"
-          echo "Requested apps: $APPS"
-          INVALID=$(echo "$APPS" | tr ',' ' ' | tr '[:upper:]' '[:lower:]' | \
-            awk '{for(i=1;i<=NF;i++){ if ($i!="nodejs" && $i!="nginx" && $i!="k8sgpt"){ print $i }}}')
-          if [ -n "$INVALID" ]; then
-            echo "Error: Unsupported app(s): $INVALID"
-            exit 1
-          fi
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: 'latest'
 
-      - name: Setup Terraform (to read outputs)
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.0
-
-      - name: Docker Login (only if building images)
-        if: contains(github.event.inputs.apps, 'nodejs') && github.event.inputs.action == 'apply'
-        run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+      - name: Verify kubectl version
+        run: kubectl version --client
       
-      - name: Configure AWS CLI
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          AWS_REGION="us-east-1"
-          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-          aws configure set default.region $AWS_REGION
-          echo "ENVIRONMENT=${ENVIRONMENT}" >> $GITHUB_ENV
-          echo "TFVARS_FILE=${ENVIRONMENT}.tfvars" >> $GITHUB_ENV
-
-      - name: Terraform Init (Remote S3 Backend)
-        run: |
-          cd terraform
-          export AWS_REGION="us-east-1"
-          terraform init -input=false -reconfigure \
-            -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
-            -backend-config="key=terraform.tfstate" \
-            -backend-config="region=$AWS_REGION" \
-            -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
-
-      - name: Prepare env vars (TFVARS, region, cluster)
-        run: |
-          ENVIRONMENT=${{ github.event.inputs.environment }}
-          TFVARS_FILE="${ENVIRONMENT}.tfvars"
-          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
-          echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
-          AWS_REGION=$(grep aws_region terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
-          CLUSTER_NAME=$(terraform -chdir=terraform output -raw cluster_name)
-          echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_ENV
-
-      - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
-          kubectl version --client
-
-      # ---------- OPTIONAL: Build & Scan NODEJS if selected ----------
-      - name: Resolve Node.js image from tfvars
-        if: contains(github.event.inputs.apps, 'nodejs')
-        run: |
-          NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
-          echo "NODEJS_IMAGE=$NODEJS_IMAGE" >> $GITHUB_ENV
+      - name: Docker Login
+        if: ${{ github.event.inputs.action == 'apply' }}
+        run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
 
       - name: Build & Push Node.js App Image
-        if: contains(github.event.inputs.apps, 'nodejs')
         run: |
+          ENVIRONMENT=${{ github.event.inputs.environment }}; TFVARS_FILE="${ENVIRONMENT}.tfvars"; echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV; echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
+          NODEJS_IMAGE=$(grep nodejs_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          echo "NODEJS_IMAGE=$NODEJS_IMAGE" >> $GITHUB_ENV
           cd apps/nodejs-app
-          docker build --no-cache -t "$NODEJS_IMAGE" .
-          docker push "$NODEJS_IMAGE"
+          docker build --no-cache -t $NODEJS_IMAGE .
+          docker push $NODEJS_IMAGE
 
-      - name: Trivy scan on Node.js image
-        if: contains(github.event.inputs.apps, 'nodejs')
+#      - name: Build & Push mini-budget-tracker App Image
+#        run: |
+#          BUDGET_APP_IMAGE=$(grep mini_budget_tracker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+#          cd apps/mini-budget-tracker
+#          docker build --progress=plain --no-cache -t $BUDGET_APP_IMAGE .
+#          docker push $BUDGET_APP_IMAGE
+
+      - name: Run Trivy scan on mini-budget-tracker
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ${{ env.NODEJS_IMAGE }}
@@ -256,76 +215,114 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           github-pat: ${{ secrets.GH_PAT }}
+          # output: trivy-mini-budget-tracker.sarif
 
-      # ---------- Install Ingress Controller (toggle) ----------
-      - name: Install NGINX Ingress Controller
-        if: ${{ github.event.inputs.install_ingress == 'true' }}
+      - name: Terraform Init for Kubernetes
         run: |
-          kubectl apply -f https://github.com/kubernetes/ingress-nginx/controller-v1.13.0/deploy/static/provider/aws/deploy.yaml
-          kubectl wait --namespace ingress-nginx \
-            --for=condition=ready pod --selector=app.kubernetes.io/component=controller \
-            --timeout=180s
+          cd terraform
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=tf-state-${{ github.event.inputs.environment }}-state" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="dynamodb_table=terraform-locks-${{ github.event.inputs.environment }}"
 
-      # ---------- Provider secrets ONLY IF k8sgpt selected ----------
-      - name: Create k8sGPT secret (OpenAI)
-        if: contains(github.event.inputs.apps, 'k8sgpt') && github.event.inputs.provider == 'openai'
+      - name: Update kubeconfig
+        run: |
+          AWS_REGION=$(grep aws_region terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          CLUSTER_NAME=$(terraform -chdir=terraform output -raw cluster_name)
+          aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+
+      - name: Install Metrics Server
+        run: |
+          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+          kubectl wait --for=condition=available deployment metrics-server -n kube-system --timeout=120s
+
+      - name: Export replicas and HPA settings from TFVARS
+        run: |
+          # Base replicas for Deployments
+          export NGINX_REPLICAS=$(grep nginx_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export NODEJS_REPLICAS=$(grep nodejs_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export K8SGPT_REPLICAS=$(grep k8sgpt_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          
+          # HPA min/max replicas
+          export NGINX_HPA_MIN=$(grep nginx_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export NGINX_HPA_MAX=$(grep nginx_hpa_max terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          
+          export NODEJS_HPA_MIN=$(grep nodejs_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export NODEJS_HPA_MAX=$(grep nodejs_hpa_max terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          
+          export MINI_BUDGET_HPA_MIN=$(grep mini_budget_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export MINI_BUDGET_HPA_MAX=$(grep mini_budget_hpa_max terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          
+          export K8SGPT_HPA_MIN=$(grep k8sgpt_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export K8SGPT_HPA_MAX=$(grep k8sgpt_hpa_max terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          
+          # Export to GitHub Actions environment
+          echo "NGINX_REPLICAS=$NGINX_REPLICAS" >> $GITHUB_ENV
+          echo "NODEJS_REPLICAS=$NODEJS_REPLICAS" >> $GITHUB_ENV
+          echo "K8SGPT_REPLICAS=$K8SGPT_REPLICAS" >> $GITHUB_ENV
+          
+          echo "NGINX_HPA_MIN=$NGINX_HPA_MIN" >> $GITHUB_ENV
+          echo "NGINX_HPA_MAX=$NGINX_HPA_MAX" >> $GITHUB_ENV
+          echo "NODEJS_HPA_MIN=$NODEJS_HPA_MIN" >> $GITHUB_ENV
+          echo "NODEJS_HPA_MAX=$NODEJS_HPA_MAX" >> $GITHUB_ENV
+          echo "MINI_BUDGET_HPA_MIN=$MINI_BUDGET_HPA_MIN" >> $GITHUB_ENV
+          echo "MINI_BUDGET_HPA_MAX=$MINI_BUDGET_HPA_MAX" >> $GITHUB_ENV
+          echo "K8SGPT_HPA_MIN=$K8SGPT_HPA_MIN" >> $GITHUB_ENV
+          echo "K8SGPT_HPA_MAX=$K8SGPT_HPA_MAX" >> $GITHUB_ENV
+  
+      - name: Create Kubernetes Secret from GitHub Secret
+        if: ${{ github.event.inputs.provider == 'openai' }}
         run: |
           kubectl create secret generic k8sgpt-secret \
             --from-literal=OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
             --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Create k8sGPT secret (Google)
-        if: contains(github.event.inputs.apps, 'k8sgpt') && github.event.inputs.provider == 'google'
-        run: |
+      
+      - name: Create Kubernetes Secret from GitHub Secret
+        if: ${{ github.event.inputs.provider == 'google' }}
+        run: |  
           kubectl create secret generic k8sgpt-secret \
             --from-literal=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
             --dry-run=client -o yaml | kubectl apply -f -
-
-      # ---------- Apply manifests selectively ----------
-      - name: Deploy NGINX (selected)
-        if: contains(github.event.inputs.apps, 'nginx')
+            
+      - name: Apply Kubernetes Deployments * Services
         run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          cp k8s/nginx.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/nginx.yaml && rm k8s/temp.yaml
-          kubectl apply -f k8s/nginx.yaml
-
-      - name: Deploy Node.js (selected)
-        if: contains(github.event.inputs.apps, 'nodejs')
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          cp k8s/nodejs-app.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/nodejs-app.yaml && rm k8s/temp.yaml
-          kubectl apply -f k8s/nodejs-app.yaml
-
-      - name: Deploy k8sGPT (selected, provider-aware)
-        if: contains(github.event.inputs.apps, 'k8sgpt')
-        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.0/deploy/static/provider/aws/deploy.yaml
+          
+          # Wait for NGINX controller pods to be ready
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=180s
           PROVIDER="${{ github.event.inputs.provider }}"
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          cp "k8s/k8sgpt-${PROVIDER}.yaml" k8s/temp.yaml && envsubst < k8s/temp.yaml > "k8s/k8sgpt-${PROVIDER}.yaml" && rm k8s/temp.yaml
-          kubectl apply -f "k8s/k8sgpt-${PROVIDER}.yaml"
-          cp k8s/k8sgpt-setup.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8sgpt-setup.yaml && rm k8s/temp.yaml
-          kubectl apply -f k8s/k8sgpt-setup.yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/nginx.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/nginx.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/nginx.yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/nodejs-app.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/nodejs-app.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/nodejs-app.yaml
+          # ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/mini-budget-tracker.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/mini-budget-tracker.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/mini-budget-tracker.yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8sgpt-"${PROVIDER}".yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8sgpt-"${PROVIDER}".yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8sgpt-"${PROVIDER}".yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8sgpt-setup.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8sgpt-setup.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8sgpt-setup.yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/ingress.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/ingress.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/ingress.yaml
 
-      - name: Apply Ingress manifest (if installed)
-        if: ${{ github.event.inputs.install_ingress == 'true' }}
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          cp k8s/ingress.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/ingress.yaml && rm k8s/temp.yaml
-          kubectl apply -f k8s/ingress.yaml
+          # Wait for Ingress IP/Hostname
           echo "Waiting for Ingress endpoint..."
           INGRESS_NAME="main-ingress"
           for i in {1..30}; do
-            HOST=$(kubectl -n default get ingress $INGRESS_NAME -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-            if [ -n "$HOST" ]; then
-              echo "Ingress ready: http://$HOST"
+            EXTERNAL_IP=$(kubectl -n default get ingress $INGRESS_NAME -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+            if [ -n "$EXTERNAL_IP" ]; then
+              echo "Ingress ready: http://$EXTERNAL_IP"
               break
             fi
             echo "Waiting 10s..."
             sleep 10
           done
-
-      - name: Verify Kubernetes resources
+          
+          # Fallback if still empty
+          if [ -z "$EXTERNAL_IP" ]; then
+            echo "Ingress hostname not ready yet. Check with: kubectl get ingress $INGRESS_NAME -n $NAMESPACE"
+          fi
+            
+      - name: Verify Kubernetes Deployments & Services
         run: |
           kubectl get deployments -A
           kubectl get svc -A
           kubectl get hpa -A
+        
