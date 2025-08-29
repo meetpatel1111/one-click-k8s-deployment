@@ -196,6 +196,16 @@ jobs:
       - name: Docker Login (only if building images)
         if: contains(github.event.inputs.apps, 'nodejs') && github.event.inputs.action == 'apply'
         run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+      
+      - name: Configure AWS CLI
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          AWS_REGION="us-east-1"
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region $AWS_REGION
+          echo "ENVIRONMENT=${ENVIRONMENT}" >> $GITHUB_ENV
+          echo "TFVARS_FILE=${ENVIRONMENT}.tfvars" >> $GITHUB_ENV
 
       - name: Prepare env vars (TFVARS, region, cluster)
         run: |
