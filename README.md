@@ -126,8 +126,6 @@ Please fork, branch (`feature/...`), and submit PRs with detailed commit message
 
 ## 📑 Documentation Navigation
 
-Full details (400+ line narrative guides) are in `/Documents/`:  
-
 - [DOCUMENTATION.md](./Documents/DOCUMENTATION.md) – General overview  
 - [DEPLOYMENT.md](./Documents/DEPLOYMENT.md) – Deployment workflows  
 - [WORKFLOW_DETAILED.md](./Documents/WORKFLOW_DETAILED.md) – Detailed workflow explanation  
