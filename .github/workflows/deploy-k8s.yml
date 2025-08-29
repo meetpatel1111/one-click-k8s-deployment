@@ -207,6 +207,16 @@ jobs:
           echo "ENVIRONMENT=${ENVIRONMENT}" >> $GITHUB_ENV
           echo "TFVARS_FILE=${ENVIRONMENT}.tfvars" >> $GITHUB_ENV
 
+      - name: Terraform Init (Remote S3 Backend)
+        run: |
+          cd terraform
+          export AWS_REGION="us-east-1"
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=tf-state-${ENVIRONMENT}-state" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="dynamodb_table=terraform-locks-${ENVIRONMENT}"
+
       - name: Prepare env vars (TFVARS, region, cluster)
         run: |
           ENVIRONMENT=${{ github.event.inputs.environment }}
