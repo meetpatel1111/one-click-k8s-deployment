@@ -142,7 +142,7 @@ Extras:
 - [HANDBOOK_CHEATSHEET.pdf](./Documents/HANDBOOK_CHEATSHEET.pdf) – 1-page cheatsheet  
 - [HANDBOOK_CHEATSHEET_GRAPHICAL.pdf](./Documents/HANDBOOK_CHEATSHEET_GRAPHICAL.pdf) – Visual cheatsheet  
 - [HANDBOOK_FULL_PRESENTATION.pptx](./Documents/HANDBOOK_FULL_PRESENTATION.pptx) – Technical deck  
-- [HANDBOOK_EXECUTIVE_PRESENTATION_V2.pptx](./Documents/HANDBOOK_EXECUTIVE_PRESENTATION_V2.pptx) – Executive deck  
+- [HANDBOOK_EXECUTIVE_PRESENTATION.pptx](./Documents/HANDBOOK_EXECUTIVE_PRESENTATION.pptx) – Executive deck  
 
 ---
 
