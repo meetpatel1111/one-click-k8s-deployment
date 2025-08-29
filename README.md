@@ -115,8 +115,7 @@ Please fork, branch (`feature/...`), and submit PRs with detailed commit message
 ---
 
 ## 🔮 Roadmap / Future Enhancements
-
-- **GitOps Integration** → Sync cluster state with ArgoCD/Flux.  
+ 
 - **Helm Support** → Parameterized, versioned app deployments.  
 - **AI-Ops Monitoring** → Predictive alerts using AI models.  
 - **Cost Monitoring** → Infracost integration in Terraform plans.  
