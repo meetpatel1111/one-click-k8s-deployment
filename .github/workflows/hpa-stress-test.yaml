@@ -1,4 +1,4 @@
-name: HPA Fortio stress test for autoscaling
+name: HPA Fortio stress test for autosclaling , scale-up and scale-down pods
 
 on:
   workflow_dispatch:
@@ -27,13 +27,13 @@ on:
         description: 'Queries per second'
         required: true
         default: '500'
-      duration:
-        description: 'Duration of test (e.g., 120s)'
+      load_duration:
+        description: 'Duration of stress load (e.g., 120s)'
         required: true
         default: '120s'
 
 jobs:
-  hpa-demo:
+  hpa-stress-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -58,24 +58,40 @@ jobs:
           --name ${{ github.event.inputs.cluster_name }} \
           --region ${{ github.event.inputs.region }}
 
-    - name: Run Fortio Load Generator
+    - name: Start Fortio Load (Scale-Up Trigger)
       run: |
-        echo "Starting Fortio load against ${{ github.event.inputs.service_name }} for ${{ github.event.inputs.duration }} at ${{ github.event.inputs.qps }} QPS"
+        echo "Starting Fortio load for ${{ github.event.inputs.load_duration }} at ${{ github.event.inputs.qps }} QPS"
         kubectl run fortio-load \
           --image=fortio/fortio \
           -n ${{ github.event.inputs.namespace }} \
           --restart=Never \
           --command -- \
-          fortio load -qps ${{ github.event.inputs.qps }} -t ${{ github.event.inputs.duration }} \
+          fortio load -qps ${{ github.event.inputs.qps }} -t ${{ github.event.inputs.load_duration }} \
           http://${{ github.event.inputs.service_name }}.${{ github.event.inputs.namespace }}.svc.cluster.local:3000${{ github.event.inputs.path }} &
 
-    - name: Watch HPA Scaling
+    - name: Watch HPA Scaling (During Load)
       run: |
-        echo "Watching HPA scaling..."
-        timeout ${{ github.event.inputs.duration }} \
+        echo "Watching HPA during load..."
+        timeout ${{ github.event.inputs.load_duration }} \
         kubectl get hpa -n ${{ github.event.inputs.namespace }} -w || true
 
     - name: Cleanup Fortio Pod
       if: always()
       run: |
         kubectl delete pod fortio-load -n ${{ github.event.inputs.namespace }} --ignore-not-found
+
+    - name: Wait for Scale-Down Window
+      run: |
+        echo "Waiting 6 minutes to allow scale-down (HPA stabilizationWindowSeconds=300)..."
+        sleep 360
+
+    - name: Watch HPA Scaling (Scale-Down)
+      run: |
+        echo "Watching HPA scale down..."
+        timeout 120 \
+        kubectl get hpa -n ${{ github.event.inputs.namespace }} -w || true
+
+    - name: Watch Pods Scaling (Optional)
+      run: |
+        echo "Watching pod count after load stops..."
+        kubectl get pods -l app=nodejs-app -n ${{ github.event.inputs.namespace }}
