@@ -68,7 +68,8 @@ jobs:
     - name: Watch HPA Scaling
       run: |
         echo "Watching HPA for app: ${{ github.event.inputs.app_name }}"
-        timeout ${{ github.event.inputs.duration }}s \
-        kubectl get hpa ${{ github.event.inputs.app_name }}-hpa \
-          -n ${{ github.event.inputs.namespace }} \
-          --watch
+        END=$((SECONDS + ${{ github.event.inputs.duration }}))
+        while [ $SECONDS -lt $END ]; do
+          kubectl get hpa ${{ github.event.inputs.app_name }}-hpa -n ${{ github.event.inputs.namespace }}
+          sleep 5
+        done
