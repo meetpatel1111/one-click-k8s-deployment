@@ -1,0 +1,73 @@
+name: HPA Stress Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: 'EKS Cluster name'
+        required: true
+        default: 'eks-cluster-dev'
+      region:
+        description: 'AWS region of the cluster'
+        required: true
+        default: 'us-east-1'
+      app_name:
+        description: 'Target Kubernetes app (Deployment name)'
+        required: true
+        default: 'nodejs-app'
+      namespace:
+        description: 'Kubernetes namespace'
+        required: true
+        default: 'default'
+      cpu_load:
+        description: 'CPU load percentage (e.g. 50, 60, 80)'
+        required: true
+        default: '60'
+      duration:
+        description: 'Duration of stress test in seconds'
+        required: true
+        default: '120'
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_SECRET_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ github.event.inputs.region }}
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+      with:
+        version: 'latest'
+
+    - name: Update kubeconfig for EKS
+      run: |
+        aws eks update-kubeconfig \
+          --name ${{ github.event.inputs.cluster_name }} \
+          --region ${{ github.event.inputs.region }}
+
+    - name: Run CPU Stress Pod
+      run: |
+        kubectl run stress-${{ github.run_id }} \
+          --image=polinux/stress \
+          --restart=Never \
+          --namespace=${{ github.event.inputs.namespace }} \
+          -- \
+          --cpu 1 \
+          --cpu-load ${{ github.event.inputs.cpu_load }} \
+          --timeout ${{ github.event.inputs.duration }}s
+
+    - name: Watch HPA Scaling
+      run: |
+        echo "Watching HPA for app: ${{ github.event.inputs.app_name }}"
+        kubectl get hpa ${{ github.event.inputs.app_name }}-hpa \
+          -n ${{ github.event.inputs.namespace }} \
+          --watch --timeout=${{ github.event.inputs.duration }}s
