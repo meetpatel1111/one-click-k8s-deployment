@@ -1,4 +1,4 @@
-name: HPA Forio stress test for autoscaling
+name: HPA Fortio stress test for autoscaling
 
 on:
   workflow_dispatch:
