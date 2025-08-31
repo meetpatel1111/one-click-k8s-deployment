@@ -1,4 +1,4 @@
-name: HPA Stress Test
+name: HPA Forio stress test for autoscaling
 
 on:
   workflow_dispatch:
@@ -8,32 +8,36 @@ on:
         required: true
         default: 'eks-cluster-dev'
       region:
-        description: 'AWS region of the cluster'
+        description: 'AWS region'
         required: true
         default: 'us-east-1'
-      app_name:
-        description: 'Target Kubernetes app (Deployment name)'
-        required: true
-        default: 'nodejs-app'
       namespace:
         description: 'Kubernetes namespace'
         required: true
         default: 'default'
-      cpu_load:
-        description: 'CPU load percentage (e.g. 50, 60, 80)'
+      service_name:
+        description: 'Target service name'
         required: true
-        default: '60'
+        default: 'nodejs-service'
+      path:
+        description: 'Service endpoint path'
+        required: true
+        default: '/nodejs/'
+      qps:
+        description: 'Queries per second'
+        required: true
+        default: '500'
       duration:
-        description: 'Duration of stress test in seconds'
+        description: 'Duration of test (e.g., 120s)'
         required: true
-        default: '120'
+        default: '120s'
 
 jobs:
-  stress-test:
+  hpa-demo:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
+    - name: Checkout
       uses: actions/checkout@v4
 
     - name: Configure AWS credentials
@@ -54,22 +58,24 @@ jobs:
           --name ${{ github.event.inputs.cluster_name }} \
           --region ${{ github.event.inputs.region }}
 
-    - name: Run CPU Stress Pod
+    - name: Run Fortio Load Generator
       run: |
-        kubectl run stress-${{ github.run_id }} \
-          --image=polinux/stress \
+        echo "Starting Fortio load against ${{ github.event.inputs.service_name }} for ${{ github.event.inputs.duration }} at ${{ github.event.inputs.qps }} QPS"
+        kubectl run fortio-load \
+          --image=fortio/fortio \
+          -n ${{ github.event.inputs.namespace }} \
           --restart=Never \
-          --namespace=${{ github.event.inputs.namespace }} \
-          -- \
-          --cpu 1 \
-          --cpu-load ${{ github.event.inputs.cpu_load }} \
-          --timeout ${{ github.event.inputs.duration }}s
+          --command -- \
+          fortio load -qps ${{ github.event.inputs.qps }} -t ${{ github.event.inputs.duration }} \
+          http://${{ github.event.inputs.service_name }}.${{ github.event.inputs.namespace }}.svc.cluster.local:3000${{ github.event.inputs.path }} &
 
     - name: Watch HPA Scaling
       run: |
-        echo "Watching HPA for app: ${{ github.event.inputs.app_name }}"
-        END=$((SECONDS + ${{ github.event.inputs.duration }}))
-        while [ $SECONDS -lt $END ]; do
-          kubectl get hpa ${{ github.event.inputs.app_name }}-hpa -n ${{ github.event.inputs.namespace }}
-          sleep 5
-        done
+        echo "Watching HPA scaling..."
+        timeout ${{ github.event.inputs.duration }} \
+        kubectl get hpa -n ${{ github.event.inputs.namespace }} -w || true
+
+    - name: Cleanup Fortio Pod
+      if: always()
+      run: |
+        kubectl delete pod fortio-load -n ${{ github.event.inputs.namespace }} --ignore-not-found
