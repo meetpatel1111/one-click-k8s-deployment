@@ -19,10 +19,20 @@ on:
         description: 'Target service name'
         required: true
         default: 'nodejs-service'
+        type: choice
+        options:
+          - nodejs-service
+          - nginx-service
+          - k8sgpt-service
       path:
         description: 'Service endpoint path'
         required: true
         default: '/nodejs/'
+        type: choice
+        options:
+          - '/nodejs/'
+          - '/nginx/'
+          - '/k8sgpt/'
       qps:
         description: 'Queries per second'
         required: true
@@ -82,8 +92,8 @@ jobs:
 
     - name: Wait for Scale-Down Window
       run: |
-        echo "Waiting 6 minutes to allow scale-down (HPA stabilizationWindowSeconds=300)..."
-        sleep 360
+        echo "Waiting 4 minutes 30 seconds to allow scale-down start (HPA stabilizationWindowSeconds=300)..."
+        sleep 270
 
     - name: Watch HPA Scaling (Scale-Down)
       run: |
@@ -91,7 +101,7 @@ jobs:
         timeout 120 \
         kubectl get hpa -n ${{ github.event.inputs.namespace }} -w || true
 
-    - name: Watch Pods Scaling (Optional)
+    - name: Watch Pods Scaling
       run: |
         echo "Watching pod count after load stops..."
         kubectl get pods -l app=nodejs-app -n ${{ github.event.inputs.namespace }}
