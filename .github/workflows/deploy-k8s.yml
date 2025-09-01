@@ -3,6 +3,17 @@ name: One-Click K8s Deployment
 on:
   workflow_dispatch:
     inputs:
+      # push:
+      #   branches:
+      #     - main
+      #   paths-ignore:
+      #     - 'README.md'
+
+      # pull_request:
+      #   branches:
+      #     - main
+      #   paths-ignore:
+      #     - 'README.md'
       environment:
         description: 'Environment to deploy (dev, test)'
         required: true
