@@ -207,10 +207,37 @@ jobs:
 #          docker build --progress=plain --no-cache -t $BUDGET_APP_IMAGE .
 #          docker push $BUDGET_APP_IMAGE
 
-      - name: Run Trivy scan on mini-budget-tracker
+      - name: Build & Push Retro Arcade Galaxy App Image
+        run: |
+          ENVIRONMENT=${{ github.event.inputs.environment }}
+          TFVARS_FILE="${ENVIRONMENT}.tfvars"
+          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
+          echo "TFVARS_FILE=$TFVARS_FILE" >> $GITHUB_ENV
+          
+          RETRO_ARCADE_IMAGE=$(grep retro_arcade_docker_image terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          echo "RETRO_ARCADE_IMAGE=$RETRO_ARCADE_IMAGE" >> $GITHUB_ENV
+          
+          # Clone the latest code directly from GitHub
+          git clone https://github.com/meetpatel1111/retro-arcade-galaxy.git
+          cd retro-arcade-galaxy
+          
+          docker build --no-cache -t $RETRO_ARCADE_IMAGE .
+          docker push $RETRO_ARCADE_IMAGE
+
+      - name: Run Trivy scan on nodejs-app
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ${{ env.NODEJS_IMAGE }}
+          format: table
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+          github-pat: ${{ secrets.GH_PAT }}
+          # output: trivy-mini-budget-tracker.sarif
+
+      - name: Run Trivy scan on nodejs-app
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.RETRO_ARCADE_IMAGE }}
           format: table
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
@@ -256,11 +283,15 @@ jobs:
           
           export K8SGPT_HPA_MIN=$(grep k8sgpt_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           export K8SGPT_HPA_MAX=$(grep k8sgpt_hpa_max terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+
+          export RETRO_ARCADE_GALAXY_HPA_MIN=$(grep retro_arcade_galaxy_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export RETRO_ARCADE_GALAXY_HPA_MAX=$(grep retro_arcade_galaxy_hpa_max terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           
           # Export to GitHub Actions environment
           echo "NGINX_REPLICAS=$NGINX_REPLICAS" >> $GITHUB_ENV
           echo "NODEJS_REPLICAS=$NODEJS_REPLICAS" >> $GITHUB_ENV
           echo "K8SGPT_REPLICAS=$K8SGPT_REPLICAS" >> $GITHUB_ENV
+          echo "RETRO_ARCADE_GALAXY_REPLICAS=$K8SGPT_REPLICAS" >> $GITHUB_ENV
           
           echo "NGINX_HPA_MIN=$NGINX_HPA_MIN" >> $GITHUB_ENV
           echo "NGINX_HPA_MAX=$NGINX_HPA_MAX" >> $GITHUB_ENV
@@ -270,6 +301,8 @@ jobs:
           echo "MINI_BUDGET_HPA_MAX=$MINI_BUDGET_HPA_MAX" >> $GITHUB_ENV
           echo "K8SGPT_HPA_MIN=$K8SGPT_HPA_MIN" >> $GITHUB_ENV
           echo "K8SGPT_HPA_MAX=$K8SGPT_HPA_MAX" >> $GITHUB_ENV
+          echo "RETRO_ARCADE_GALAXY_HPA_MIN=$RETRO_ARCADE_GALAXY_HPA_MIN" >> $GITHUB_ENV
+          echo "RETRO_ARCADE_GALAXY_HPA_MAX=$RETRO_ARCADE_GALAXY_HPA_MAX" >> $GITHUB_ENV
   
       - name: Create Kubernetes Secret from GitHub Secret
         if: ${{ github.event.inputs.provider == 'openai' }}
@@ -285,6 +318,12 @@ jobs:
             --from-literal=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
             --dry-run=client -o yaml | kubectl apply -f -
             
+      - name: Create Secret for Retro Arcade Galaxy
+        run: |
+          kubectl create secret generic retro-arcade-secret \
+            --from-literal=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Kubernetes Deployments * Services
         run: |
           kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.0/deploy/static/provider/aws/deploy.yaml
@@ -301,6 +340,7 @@ jobs:
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8sgpt-"${PROVIDER}".yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8sgpt-"${PROVIDER}".yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8sgpt-"${PROVIDER}".yaml
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/k8sgpt-setup.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/k8sgpt-setup.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/k8sgpt-setup.yaml
           ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/ingress.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/ingress.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/ingress.yaml
+          ENVIRONMENT="${{ github.event.inputs.environment }}" && cp k8s/retro-arcade-galaxy.yaml k8s/temp.yaml && envsubst < k8s/temp.yaml > k8s/retro-arcade-galaxy.yaml && rm k8s/temp.yaml && kubectl apply -f k8s/retro-arcade-galaxy.yaml
 
           # Wait for Ingress IP/Hostname
           echo "Waiting for Ingress endpoint..."
