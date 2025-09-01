@@ -74,7 +74,7 @@ spec:
     kind: Deployment
     name: retro-arcade-galaxy
   minReplicas: ${RETRO_ARCADE_GALAXY_HPA_MIN}
-  maxReplicas: ${RETRO_ARCADE_GALAXY_HPA_MIN}
+  maxReplicas: ${RETRO_ARCADE_GALAXY_HPA_MAX}
   metrics:
     - type: Resource
       resource:
