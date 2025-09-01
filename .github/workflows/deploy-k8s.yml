@@ -270,6 +270,7 @@ jobs:
           export NGINX_REPLICAS=$(grep nginx_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           export NODEJS_REPLICAS=$(grep nodejs_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           export K8SGPT_REPLICAS=$(grep k8sgpt_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
+          export RETRO_ARCADE_GALAXY_REPLICAS=$(grep retro_arcade_galaxy_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
           
           # HPA min/max replicas
           export NGINX_HPA_MIN=$(grep nginx_replicas terraform/$TFVARS_FILE | awk -F'=' '{print $2}' | xargs)
